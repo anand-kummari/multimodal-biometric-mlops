@@ -1,0 +1,40 @@
+dataset:
+  name: multimodal_biometric
+  num_subjects: 45
+  iris_images_per_eye: 5
+  fingerprints_per_subject: 10
+
+  # Image preprocessing
+  iris_size: [224, 224]
+  fingerprint_size: [224, 224]
+
+  # Modalities to include
+  modalities:
+    - iris_left
+    - iris_right
+    - fingerprint
+
+dataloader:
+  batch_size: 16
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  drop_last: false
+
+  # Train/val/test split ratios
+  split:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+
+cache:
+  enabled: true
+  backend: pyarrow  # pyarrow | none
+  compression: snappy  # snappy | zstd | none
+
+preprocessing:
+  parallel:
+    enabled: true
+    backend: ray  # ray | multiprocessing
+    num_cpus: null  # null = auto-detect

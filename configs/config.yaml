@@ -1,0 +1,30 @@
+defaults:
+  - data: default
+  - model: fusion_net
+  - training: default
+  - _self_
+
+project:
+  name: multimodal-biometric-mlops
+  seed: 42
+  device: auto  # auto | cpu | cuda | mps
+
+storage:
+  backend: local  # local | azure
+  base_path: ${hydra:runtime.cwd}/data
+  raw_dir: ${storage.base_path}/raw
+  processed_dir: ${storage.base_path}/processed
+  cache_dir: ${storage.base_path}/cache
+  checkpoint_dir: ${storage.base_path}/../checkpoints
+
+logging:
+  level: INFO
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  file: null  # Set to a path to also log to file
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
