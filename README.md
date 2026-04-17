@@ -60,10 +60,21 @@ graph LR
 # Clone and install in development mode
 git clone <repo-url>
 cd multimodal-biometric-mlops
+
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install dependencies
 pip install -e ".[dev]"
 
 # Install pre-commit hooks
 pre-commit install
+
+# Install kaggle CLI
+pip install kaggle
 ```
 
 ### 2. Download Dataset

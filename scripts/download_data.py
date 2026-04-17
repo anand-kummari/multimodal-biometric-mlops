@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import shutil
 import subprocess
 import sys
@@ -47,12 +46,21 @@ def download_from_kaggle(output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Downloading dataset from Kaggle: %s", KAGGLE_DATASET)
+    # Resolve kaggle binary from the same directory as the running Python interpreter
+    # so it works correctly inside virtual environments.
+    kaggle_bin = Path(sys.executable).parent / "kaggle"
+    kaggle_cmd = str(kaggle_bin) if kaggle_bin.exists() else "kaggle"
+
     try:
         subprocess.run(
             [
-                "kaggle", "datasets", "download",
-                "-d", KAGGLE_DATASET,
-                "-p", str(output_dir),
+                kaggle_cmd,
+                "datasets",
+                "download",
+                "-d",
+                KAGGLE_DATASET,
+                "-p",
+                str(output_dir),
             ],
             check=True,
             capture_output=True,
@@ -109,9 +117,7 @@ def reorganize_dataset(raw_dir: Path, output_dir: Path) -> None:
 
     # Find all image files recursively
     image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
-    all_images = [
-        f for f in raw_dir.rglob("*") if f.suffix.lower() in image_extensions
-    ]
+    all_images = [f for f in raw_dir.rglob("*") if f.suffix.lower() in image_extensions]
 
     logger.info("Found %d image files", len(all_images))
 
@@ -143,11 +149,22 @@ def reorganize_dataset(raw_dir: Path, output_dir: Path) -> None:
 
 
 def _extract_subject_id(parts: tuple[str, ...], stem: str) -> int | None:
-    """Try to extract a subject ID from the path components."""
+    """Try to extract a subject ID from the path components.
+
+    The Kaggle dataset structure uses numeric directory names as subject IDs:
+        IRIS and FINGERPRINT DATASET/1/left/aeval1.bmp  → subject 1
+        IRIS and FINGERPRINT DATASET/1/Fingerprint/1__M_Left_index_finger.BMP → subject 1
+
+    We look for directory parts that are purely numeric (e.g., '1', '23', '045').
+    Named prefixes like 'subject_01' are also supported for pre-organized data.
+    """
     for part in parts:
         part_lower = part.lower()
-        # Pattern: "subject_01", "person_01", "01", "s01"
-        for prefix in ("subject_", "person_", "s", ""):
+        # First try: purely numeric directory names ("1", "23", "045")
+        if part_lower.isdigit():
+            return int(part_lower)
+        # Second try: prefixed patterns ("subject_01", "person_01", "s01")
+        for prefix in ("subject_", "person_", "s"):
             if part_lower.startswith(prefix):
                 try:
                     num_str = part_lower.removeprefix(prefix).lstrip("0") or "0"
@@ -158,18 +175,30 @@ def _extract_subject_id(parts: tuple[str, ...], stem: str) -> int | None:
 
 
 def _extract_modality(parts: tuple[str, ...]) -> str | None:
-    """Determine the modality from path components."""
-    parts_lower = [p.lower() for p in parts]
-    full_path = "/".join(parts_lower)
+    """Determine the modality from the immediate parent directory name.
 
-    if "left" in full_path and ("iris" in full_path or "eye" in full_path):
-        return "iris_left"
-    elif "right" in full_path and ("iris" in full_path or "eye" in full_path):
-        return "iris_right"
-    elif "iris" in full_path or "eye" in full_path:
-        return "iris_left"  # Default to left if unspecified
-    elif "fingerprint" in full_path or "finger" in full_path:
+    The Kaggle dataset structure is:
+        <optional_parents>/<subject_id>/Fingerprint/<image>.BMP
+        <optional_parents>/<subject_id>/left/<image>.bmp        (left iris)
+        <optional_parents>/<subject_id>/right/<image>.bmp       (right iris)
+
+    The modality is always the *immediate parent directory* of the image
+    file (i.e., `parts[-2]`).
+    """
+    if len(parts) < 2:
+        return None
+
+    # The immediate parent directory of the image file
+    parent_dir = parts[-2].lower()
+
+    if parent_dir == "fingerprint" or parent_dir == "finger":
         return "fingerprint"
+    if parent_dir == "left":
+        return "iris_left"
+    if parent_dir == "right":
+        return "iris_right"
+    if parent_dir in ("iris", "eye"):
+        return "iris_left"  # Default to left if unspecified
 
     return None
 
@@ -186,6 +215,12 @@ def main() -> None:
         help="Output directory for organized dataset",
     )
     parser.add_argument(
+        "--source-dir",
+        type=str,
+        default=None,
+        help="Path to already-extracted dataset (skips download/extract)",
+    )
+    parser.add_argument(
         "--skip-download",
         action="store_true",
         help="Skip download (use if data is already downloaded)",
@@ -198,21 +233,23 @@ def main() -> None:
     )
 
     output_dir = Path(args.output_dir)
-    temp_dir = output_dir.parent / "temp_download"
 
-    if not args.skip_download:
+    if args.source_dir:
+        # Reorganize from a user-specified already-extracted directory
+        source = Path(args.source_dir)
+        if not source.exists():
+            logger.error("Source directory does not exist: %s", source)
+            return
+        reorganize_dataset(source, output_dir)
+    elif not args.skip_download:
+        temp_dir = output_dir.parent / "temp_download"
         zip_path = download_from_kaggle(temp_dir)
         extract_archive(zip_path, temp_dir / "extracted")
         reorganize_dataset(temp_dir / "extracted", output_dir)
         # Clean up temp
         shutil.rmtree(temp_dir, ignore_errors=True)
     else:
-        # Assume data already exists in some form
-        extracted = output_dir.parent / "extracted"
-        if extracted.exists():
-            reorganize_dataset(extracted, output_dir)
-        else:
-            logger.info("Skipping download; using existing data in %s", output_dir)
+        logger.info("Skipping download; using existing data in %s", output_dir)
 
     logger.info("Dataset ready at %s", output_dir)
 
