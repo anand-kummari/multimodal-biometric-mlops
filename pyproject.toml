@@ -30,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+azure = [
+    "azure-storage-blob>=12.19.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -115,6 +118,7 @@ module = [
     "omegaconf.*",
     "torchvision.*",
     "pyarrow.*",
+    "azure.*",
 ]
 ignore_missing_imports = true
 
