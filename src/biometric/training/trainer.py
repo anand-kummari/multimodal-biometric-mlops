@@ -15,7 +15,8 @@ from torch.optim import SGD, Adam, AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau, StepLR
 from torch.utils.data import DataLoader
 
-from biometric.training.callbacks import TrainingCallback
+from biometric.training.callbacks import ModelCheckpoint, TrainingCallback
+from biometric.training.experiment import log_metrics, log_params
 from biometric.training.metrics import MetricTracker
 
 logger = logging.getLogger(__name__)
@@ -61,12 +62,14 @@ class Trainer:
         mixed_precision: bool = True,
         gradient_clip_max_norm: float | None = 1.0,
         callbacks: list[TrainingCallback] | None = None,
+        max_epochs: int = 50,
     ) -> None:
         self.model = model.to(device)
         self.device = device
         self.mixed_precision = mixed_precision and device.type == "cuda"
         self.gradient_clip_max_norm = gradient_clip_max_norm
         self.callbacks = callbacks or []
+        self._start_epoch = 0
 
         # Loss function
         self.criterion = nn.CrossEntropyLoss()
@@ -81,13 +84,28 @@ class Trainer:
         )
 
         # Learning rate scheduler
-        self.scheduler = self._create_scheduler(scheduler_type, warmup_epochs, min_lr)
+        self.scheduler = self._create_scheduler(scheduler_type, warmup_epochs, min_lr, max_epochs)
 
         # Mixed precision scaler
         self.scaler = GradScaler("cuda", enabled=self.mixed_precision)
 
         # Metric tracking
         self.metric_tracker = MetricTracker()
+
+        for cb in self.callbacks:
+            if isinstance(cb, ModelCheckpoint):
+                cb.attach_training_state(self.optimizer, self.scheduler, self.scaler)
+
+        log_params(
+            {
+                "optimizer": optimizer_name,
+                "learning_rate": learning_rate,
+                "weight_decay": weight_decay,
+                "scheduler": scheduler_type,
+                "mixed_precision": str(self.mixed_precision),
+                "max_epochs": max_epochs,
+            }
+        )
 
         logger.info(
             "Trainer initialized: optimizer=%s, lr=%.6f, mixed_precision=%s, device=%s",
@@ -97,17 +115,23 @@ class Trainer:
             device,
         )
 
-    def _create_scheduler(self, scheduler_type: str, warmup_epochs: int, min_lr: float) -> Any:
+    def _create_scheduler(
+        self,
+        scheduler_type: str,
+        warmup_epochs: int,
+        min_lr: float,
+        max_epochs: int = 50,
+    ) -> Any:
         """Create a learning rate scheduler."""
         if scheduler_type == "cosine":
-            return CosineAnnealingLR(self.optimizer, T_max=50, eta_min=min_lr)
+            return CosineAnnealingLR(self.optimizer, T_max=max_epochs, eta_min=min_lr)
         elif scheduler_type == "step":
             return StepLR(self.optimizer, step_size=10, gamma=0.1)
         elif scheduler_type == "plateau":
             return ReduceLROnPlateau(self.optimizer, mode="min", patience=5, factor=0.5)
         else:
             logger.warning("Unknown scheduler '%s', using cosine", scheduler_type)
-            return CosineAnnealingLR(self.optimizer, T_max=50, eta_min=min_lr)
+            return CosineAnnealingLR(self.optimizer, T_max=max_epochs, eta_min=min_lr)
 
     def fit(
         self,
@@ -128,7 +152,7 @@ class Trainer:
         logger.info("Starting training for %d epochs", epochs)
         total_start = time.perf_counter()
 
-        for epoch in range(epochs):
+        for epoch in range(self._start_epoch, epochs):
             epoch_start = time.perf_counter()
 
             # Training phase
@@ -159,6 +183,10 @@ class Trainer:
 
             epoch_time = time.perf_counter() - epoch_start
             current_lr = self.optimizer.param_groups[0]["lr"]
+
+            # Publish epoch metrics to the experiment tracker.
+            log_metrics({**all_metrics, "lr": current_lr}, step=epoch)
+
             logger.info(
                 "Epoch %d/%d completed in %.1fs | lr=%.6f | %s",
                 epoch + 1,
@@ -270,6 +298,40 @@ class Trainer:
         accuracy = correct / max(total, 1)
 
         return {"val_loss": avg_loss, "val_acc": accuracy}
+
+    def resume_from_checkpoint(self, path: str | Path) -> None:
+        """Restore training state from a previously saved checkpoint.
+
+        Loads model weights, optimizer momentum buffers, scheduler step
+        count so that training continues exactly
+        where it was interrupted.
+
+        Args:
+            path: Path to the checkpoint file (.pt).
+
+        Raises:
+            FileNotFoundError: If the checkpoint file does not exist.
+        """
+        ckpt_path = Path(path)
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+
+        checkpoint = torch.load(ckpt_path, map_location=self.device, weights_only=False)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+
+        if "optimizer_state_dict" in checkpoint:
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if "scheduler_state_dict" in checkpoint:
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        if "scaler_state_dict" in checkpoint:
+            self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
+
+        self._start_epoch = checkpoint.get("epoch", 0) + 1
+        logger.info(
+            "Resumed from checkpoint %s (epoch %d)",
+            ckpt_path,
+            checkpoint.get("epoch", -1),
+        )
 
     def save_training_config(self, path: str | Path) -> None:
         """Save the training configuration for reproducibility."""

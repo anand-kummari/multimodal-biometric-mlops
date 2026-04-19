@@ -1,0 +1,7 @@
+storage:
+  backend: local
+  base_path: ${hydra:runtime.cwd}/data
+  raw_dir: ${storage.base_path}/raw
+  processed_dir: ${storage.base_path}/processed
+  cache_dir: ${storage.base_path}/cache
+  checkpoint_dir: ${storage.base_path}/../checkpoints

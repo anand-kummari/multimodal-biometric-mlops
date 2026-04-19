@@ -75,6 +75,8 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         self.data_dir = Path(data_dir)
         self.split = split
         self.modalities = modalities or ["iris_left", "iris_right", "fingerprint"]
+        self._iris_size = iris_size
+        self._fingerprint_size = fingerprint_size
 
         # Build modality-specific transforms
         is_train = split == "train"
@@ -182,6 +184,9 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         sample = self.samples[idx]
         result: dict[str, Any] = {"label": torch.tensor(sample.subject_id, dtype=torch.long)}
 
+        ih, iw = self._iris_size
+        fh, fw = self._fingerprint_size
+
         # Load iris left
         if "iris_left" in self.modalities and sample.iris_left_path:
             result["iris_left"] = self._load_and_transform(
@@ -189,7 +194,7 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
             )
             result["has_iris_left"] = True
         else:
-            result["iris_left"] = torch.zeros(3, 224, 224)
+            result["iris_left"] = torch.zeros(3, ih, iw)
             result["has_iris_left"] = False
 
         # Load iris right
@@ -199,32 +204,40 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
             )
             result["has_iris_right"] = True
         else:
-            result["iris_right"] = torch.zeros(3, 224, 224)
+            result["iris_right"] = torch.zeros(3, ih, iw)
             result["has_iris_right"] = False
 
         # Load fingerprint
         if "fingerprint" in self.modalities and sample.fingerprint_path:
             result["fingerprint"] = self._load_and_transform(
-                sample.fingerprint_path, self.fingerprint_transform
+                sample.fingerprint_path,
+                self.fingerprint_transform,
+                mode="L",
             )
             result["has_fingerprint"] = True
         else:
-            result["fingerprint"] = torch.zeros(1, 224, 224)
+            result["fingerprint"] = torch.zeros(1, fh, fw)
             result["has_fingerprint"] = False
 
         return result
 
     @staticmethod
-    def _load_and_transform(image_path: str, transform: transforms.Compose) -> torch.Tensor:
+    def _load_and_transform(
+        image_path: str,
+        transform: transforms.Compose,
+        mode: str = "RGB",
+    ) -> torch.Tensor:
         """Load an image from disk and apply transforms.
 
         Args:
             image_path: Path to the image file.
             transform: Transform pipeline to apply.
+            mode: PIL colour mode (``RGB`` for iris, ``L`` for
+                grayscale fingerprints).
 
         Returns:
             Transformed image tensor.
         """
-        image = Image.open(image_path).convert("RGB")
+        image = Image.open(image_path).convert(mode)
         result: torch.Tensor = transform(image)
         return result

@@ -33,6 +33,13 @@ dependencies = [
 azure = [
     "azure-storage-blob>=12.19.0",
 ]
+tracking = [
+    "mlflow>=2.10.0",
+]
+export = [
+    "onnx>=1.15.0",
+    "onnxruntime>=1.17.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -119,6 +126,9 @@ module = [
     "torchvision.*",
     "pyarrow.*",
     "azure.*",
+    "mlflow.*",
+    "onnx.*",
+    "onnxruntime.*",
 ]
 ignore_missing_imports = true
 

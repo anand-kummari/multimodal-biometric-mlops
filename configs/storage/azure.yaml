@@ -1,0 +1,16 @@
+# Azure Blob Storage configuration.
+#
+# The connection string should be passed via an environment variable
+# rather than committed to version control:
+#
+#   export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=..."
+#   python scripts/train.py storage=azure
+#
+storage:
+  backend: azure
+  connection_string: ${oc.env:AZURE_STORAGE_CONNECTION_STRING}
+  container_name: biometric-data
+  raw_dir: raw
+  processed_dir: processed
+  cache_dir: cache
+  checkpoint_dir: checkpoints

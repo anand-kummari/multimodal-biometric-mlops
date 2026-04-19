@@ -5,6 +5,7 @@ from __future__ import annotations
 import abc
 import logging
 from pathlib import Path
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -132,6 +133,26 @@ class ModelCheckpoint(TrainingCallback):
         self.save_last = save_last
 
         self._best_value: float | None = None
+        self._optimizer: Any = None
+        self._scheduler: Any = None
+        self._scaler: Any = None
+
+    def attach_training_state(
+        self,
+        optimizer: Any,
+        scheduler: Any,
+        scaler: Any,
+    ) -> None:
+        """Bind the optimizer, scheduler, and scaler so they are included in checkpoints.
+
+        Args:
+            optimizer: The training optimizer instance.
+            scheduler: The learning-rate scheduler instance.
+            scaler: The AMP gradient scaler instance.
+        """
+        self._optimizer = optimizer
+        self._scheduler = scheduler
+        self._scaler = scaler
 
     def on_epoch_end(self, epoch: int, metrics: dict[str, float], model: nn.Module) -> None:
         """Save checkpoints based on metric performance."""
@@ -165,16 +186,18 @@ class ModelCheckpoint(TrainingCallback):
         metrics: dict[str, float],
         tag: str,
     ) -> None:
-        """Save a checkpoint to disk.
-
-        Checkpoint includes model state, epoch, and metrics for full
-        reproducibility of the saved state.
-        """
-        checkpoint = {
+        """Save a checkpoint to disk."""
+        checkpoint: dict[str, Any] = {
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
             "metrics": metrics,
         }
+        if self._optimizer is not None:
+            checkpoint["optimizer_state_dict"] = self._optimizer.state_dict()
+        if self._scheduler is not None:
+            checkpoint["scheduler_state_dict"] = self._scheduler.state_dict()
+        if self._scaler is not None:
+            checkpoint["scaler_state_dict"] = self._scaler.state_dict()
         path = self.checkpoint_dir / f"checkpoint_{tag}.pt"
         torch.save(checkpoint, path)
         logger.debug("Checkpoint saved: %s", path)

@@ -44,6 +44,7 @@ def main(cfg: DictConfig) -> None:
     from biometric.data.dataset import MultimodalBiometricDataset
     from biometric.models.fusion import MultimodalFusionNet
     from biometric.training.callbacks import EarlyStopping, ModelCheckpoint, TrainingCallback
+    from biometric.training.experiment import end_run, init_experiment
     from biometric.training.trainer import Trainer
     from biometric.utils.logging import setup_logging
     from biometric.utils.reproducibility import get_device, set_seed
@@ -54,6 +55,12 @@ def main(cfg: DictConfig) -> None:
 
     set_seed(cfg.project.seed)
     device = get_device(cfg.project.device)
+
+    # Start experiment tracking (no-op if MLflow is not installed)
+    init_experiment(
+        experiment_name=cfg.project.name,
+        run_name=f"{cfg.project.name}_{Path.cwd().name}",
+    )
 
     # Data
     data_cfg = cfg.data
@@ -147,6 +154,7 @@ def main(cfg: DictConfig) -> None:
         logger.info("Best epoch: %s", best)
 
     logger.info("Training complete. Outputs saved to: %s", Path.cwd())
+    end_run()
 
 
 if __name__ == "__main__":

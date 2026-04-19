@@ -1,116 +1,187 @@
 # Multimodal Biometric Recognition System
 
-A scalable, production-quality ML infrastructure for multimodal biometric recognition using iris and fingerprint data. Built with clean Python engineering, config-driven architecture, and MLOps best practices.
+End-to-end MLOps infrastructure for multimodal biometric recognition using iris and fingerprint images. The project covers the full lifecycle from raw data ingestion through parallel preprocessing, model training with experiment tracking, to ONNX export for production serving.
+
+Built on PyTorch with a config-driven architecture so that every knob (batch size, fusion strategy, storage backend, learning rate schedule) can be changed from YAML files or the command line without touching source code.
 
 
-**Key Design Decisions** (see [docs/adr/](docs/adr/) for full rationale):
-- **Hydra** for hierarchical, config-driven pipeline orchestration
-- **PyArrow/Parquet** for cached data loading (3-5x speedup over raw image decode)
-- **Ray** for parallel preprocessing (scales from local to Kubernetes clusters)
-- **Strategy Pattern** for swappable fusion strategies (concatenation / attention)
-- **Storage Abstraction** for transparent local ↔ Azure Blob migration
-
-## Project Structure
+## Project structure
 
 ```
-├── configs/              # Hydra YAML configurations
-│   ├── config.yaml       # Root config (composes sub-configs)
-│   ├── data/             # Data loading & preprocessing configs
-│   ├── model/            # Model architecture configs
-│   └── training/         # Training hyperparameter configs
-├── src/biometric/        # Main package
-│   ├── data/             # Dataset, DataLoader, transforms, Arrow cache
-│   ├── models/           # Encoders (iris, fingerprint) + fusion network
-│   ├── training/         # Trainer, callbacks, metrics
-│   ├── inference/        # Prediction pipeline
-│   ├── preprocessing/    # Ray-based parallel preprocessing
-│   ├── storage/          # Storage backend abstraction (local / Azure)
-│   └── utils/            # Logging, reproducibility, profiling
-├── tests/                # Comprehensive test suite
-├── benchmarks/           # Data loading performance benchmarks
-├── scripts/              # Entry points (download, preprocess, train)
-├── docs/                 # Architecture docs & ADRs
-│   ├── architecture.md
-│   ├── scalability-analysis.md
-│   └── adr/              # Architecture Decision Records
-└── .github/workflows/    # CI pipeline (lint, test, smoke test)
+.
+├── configs/                  # Hydra YAML configurations
+│   ├── config.yaml           # Root config (composes sub-configs)
+│   ├── data/                 # Data loading and preprocessing
+│   ├── model/                # Model architecture (fusion_net)
+│   ├── storage/              # Storage backends (local / azure)
+│   └── training/             # Hyperparameters, scheduling, callbacks
+├── src/biometric/            # Main Python package
+│   ├── data/                 # Dataset, DataLoader, transforms, Arrow cache, validation
+│   ├── models/               # Encoders (iris, fingerprint), fusion network, ONNX export
+│   ├── training/             # Trainer, callbacks, metrics, experiment tracking
+│   ├── inference/            # Single-sample and batch prediction
+│   ├── preprocessing/        # Ray-based parallel image processing
+│   ├── storage/              # Abstract backend + local + Azure Blob implementations
+│   └── utils/                # Logging, reproducibility, profiling
+├── tests/                    # 138 unit tests (pytest)
+├── benchmarks/               # DataLoader throughput benchmarks
+├── scripts/                  # CLI entry points (download, preprocess, train)
+├── Dockerfile                # Multi-stage, non-root, tini-based production image
+├── Makefile                  # Common dev commands
+├── .github/workflows/ci.yml  # Lint, typecheck, test, security scan, Docker build
+└── docs/                     # Architecture docs and ADRs
 ```
 
-## Quick Start
+## Getting started
 
 ### 1. Installation
 
 ```bash
-# Clone and install in development mode
 git clone <repo-url>
 cd multimodal-biometric-mlops
-
-# Create virtual environment
 python -m venv .venv
-
-# Activate virtual environment
 source .venv/bin/activate
 
-# Install dependencies
-pip install -e ".[dev]"
-
-# Install pre-commit hooks
-pre-commit install
-
-# Install kaggle CLI
-pip install kaggle
+pip install -e ".[dev]"       # Core + dev tools
+pre-commit install            # Enable git hooks
 ```
 
-### 2. Download Dataset
+Optional extras:
 
 ```bash
-# Requires Kaggle CLI configured (pip install kaggle)
+pip install -e ".[azure]"     # Azure Blob Storage support
+pip install -e ".[tracking]"  # MLflow experiment tracking
+pip install -e ".[export]"    # ONNX model export
+```
+
+### 2. Download and organise the dataset
+
+```bash
+pip install kaggle            # One-time Kaggle CLI setup
 python scripts/download_data.py --output-dir data/raw
 ```
 
-Dataset: [Multimodal Iris & Fingerprint Biometric Data](https://www.kaggle.com/datasets/ninadmehendale/multimodal-iris-fingerprint-biometric-data) — 45 subjects, iris + fingerprint images.
+Dataset: [Multimodal Iris & Fingerprint Biometric Data](https://www.kaggle.com/datasets/ninadmehendale/multimodal-iris-fingerprint-biometric-data) (45 subjects, ~2 700 images).
 
-### 3. Preprocess Data
+### 3. Preprocess
 
 ```bash
-# Parallel preprocessing with Ray + build PyArrow cache
-python scripts/preprocess.py
-
-# Sequential fallback (no Ray)
-python scripts/preprocess.py --no-ray
+python scripts/preprocess.py                # Ray parallel + Arrow cache
+python scripts/preprocess.py --no-ray       # Sequential fallback
+python scripts/preprocess.py --cache-only   # Rebuild cache without reprocessing
 ```
 
 ### 4. Train
 
 ```bash
-# Default training
-python scripts/train.py
-
-# Quick debug run (3 epochs, no checkpointing)
-python scripts/train.py training=quick
-
-# Override parameters via CLI
+python scripts/train.py                                        # Defaults
 python scripts/train.py training.epochs=20 data.dataloader.batch_size=32
-
-# Try attention fusion
-python scripts/train.py model.fusion.strategy=attention
+python scripts/train.py model.model.fusion.strategy=attention  # Attention fusion
+python scripts/train.py storage=azure                          # Azure Blob backend
 ```
 
-### 5. Run Benchmarks
+Hydra writes outputs (checkpoints, logs, config snapshot) to `outputs/<date>/<time>/`.
 
-Run benchmark to compare data loading performance:
+### 5. Resume training
+
+```bash
+python scripts/train.py +resume_from=outputs/2024-01-15/10-30-00/checkpoints/checkpoint_last.pt
+```
+
+Checkpoints include optimizer momentum, scheduler state, and gradient-scaler state, so the resumed run picks up exactly where it left off.
+
+### 6. Export to ONNX
+
+```python
+from biometric.models.export import export_to_onnx
+from biometric.models.fusion import MultimodalFusionNet
+
+model = MultimodalFusionNet(num_classes=45)
+# ... load weights ...
+export_to_onnx(model, "model.onnx")
+```
+
+### 7. Run benchmarks
+
 ```bash
 python benchmarks/benchmark_dataloader.py --data-dir data/processed
 ```
 
+Compares throughput across different `num_workers`, `pin_memory`, and caching configurations.
+
+## Data validation
+
+Before training starts you can run a dataset health check that flags corrupt images, missing modality folders, and class-imbalance statistics:
+
+```python
+from biometric.data.validation import validate_dataset
+
+report = validate_dataset("data/raw")
+print(report.summary())
+# Subjects:           45
+# Total images:       2700
+# Corrupt images:     0
+# Subjects w/ gaps:   0
+```
+
+## Storage backends
+
+The entire pipeline reads and writes through an abstract `StorageBackend` interface. Switching between local disk and Azure Blob is a single config change.
+
+| Backend | Config | When to use |
+|---|---|---|
+| `local` (default) | `storage=local` | Development, CI, local training |
+| `azure` | `storage=azure` | Cloud training, shared team datasets |
+
+For Azure, set the connection string in an environment variable:
+
+```bash
+export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;..."
+python scripts/train.py storage=azure
+```
+
+## Experiment tracking
+
+When MLflow is installed, every training run logs hyperparameters and per-epoch metrics automatically. No code changes needed.
+
+```bash
+pip install -e ".[tracking]"
+mlflow ui                     # Open http://localhost:5000
+python scripts/train.py       # Metrics appear in the UI
+```
+
+Without MLflow the tracking calls are silently skipped.
+
+## CI/CD pipeline
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push:
+
+1. **Lint & format** (ruff) across the entire codebase
+2. **Type check** (mypy) with strict config
+3. **Unit tests** (pytest) with 70% minimum coverage gate
+4. **Security scan** (pip-audit) for known vulnerabilities
+5. **Docker build** verification
+6. **Smoke test** with a synthetic forward pass
+
+## Docker
+
+```bash
+docker build -t multimodal-biometric-mlops .
+docker run --gpus all -v ./data:/app/data multimodal-biometric-mlops \
+    python scripts/train.py training.epochs=5
+```
+
+The image uses a multi-stage build (builder + slim runtime), runs as a non-root user, and includes a health check.
+
 ## Development
 
 ```bash
-make help          # Show all available commands
-make lint          # Run ruff linter
-make format        # Auto-format code
-make typecheck     # Run mypy type checker
-make test          # Run unit tests
-make test-cov      # Run tests with coverage report
-make all           # Run lint + typecheck + test
+make help          # Show all targets
+make lint          # Ruff lint
+make format        # Ruff auto-format
+make typecheck     # Mypy strict
+make test          # Pytest
+make test-cov      # Pytest with coverage report
+make all           # lint + typecheck + test
+make docker-build  # Build Docker image
 ```

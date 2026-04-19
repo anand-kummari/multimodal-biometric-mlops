@@ -34,8 +34,10 @@ class Predictor:
         checkpoint_path: str | Path,
         device: torch.device | None = None,
         model_config: dict[str, Any] | None = None,
+        image_size: tuple[int, int] = (224, 224),
     ) -> None:
         self.checkpoint_path = Path(checkpoint_path)
+        self._image_size = image_size
 
         if device is None:
             if torch.cuda.is_available():
@@ -60,8 +62,8 @@ class Predictor:
         self._load_checkpoint()
 
         # Eval transforms (no augmentation)
-        self.iris_transform = iris_eval_transform()
-        self.fingerprint_transform = fingerprint_eval_transform()
+        self.iris_transform = iris_eval_transform(image_size)
+        self.fingerprint_transform = fingerprint_eval_transform(image_size)
 
         logger.info(
             "Predictor initialized: checkpoint=%s, device=%s",
@@ -164,7 +166,8 @@ class Predictor:
         If the path is None, returns a zero tensor (missing modality).
         """
         if image_path is None:
-            return torch.zeros(channels, 224, 224)
+            h, w = self._image_size
+            return torch.zeros(channels, h, w)
 
         image = Image.open(image_path).convert("RGB")
         result: torch.Tensor = transform(image)

@@ -47,7 +47,7 @@ class MetricTracker:
     """
 
     def __init__(self) -> None:
-        self._batch_values: dict[str, list[float]] = defaultdict(list)
+        self._batch_values: dict[str, list[tuple[float, int]]] = defaultdict(list)
         self._epoch_history: list[EpochMetrics] = []
 
     def update(self, name: str, value: float, count: int = 1) -> None:
@@ -58,8 +58,7 @@ class MetricTracker:
             value: Metric value for this batch.
             count: Number of samples this value represents (for weighted avg).
         """
-        # Store (value * count, count) for proper weighted averaging
-        self._batch_values[name].append(value)
+        self._batch_values[name].append((value, count))
 
     def compute_epoch(self, epoch: int) -> EpochMetrics:
         """Compute epoch-level metrics from accumulated batch values.
@@ -71,9 +70,11 @@ class MetricTracker:
             EpochMetrics with averaged values for each tracked metric.
         """
         computed: dict[str, float] = {}
-        for name, values in self._batch_values.items():
-            if values:
-                computed[name] = sum(values) / len(values)
+        for name, entries in self._batch_values.items():
+            if entries:
+                total_weighted = sum(v * c for v, c in entries)
+                total_count = sum(c for _, c in entries)
+                computed[name] = total_weighted / max(total_count, 1)
 
         epoch_metrics = EpochMetrics(epoch=epoch, metrics=computed)
         self._epoch_history.append(epoch_metrics)

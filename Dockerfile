@@ -9,7 +9,7 @@
 #       python scripts/train.py training=quick
 
 # ---- Builder Stage ----
-FROM python:3.10-slim as builder
+FROM python:3.10-slim AS builder
 
 WORKDIR /build
 
@@ -25,12 +25,16 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir --prefix=/install .
 
 # ---- Runtime Stage ----
-FROM python:3.10-slim as runtime
+FROM python:3.10-slim AS runtime
+
+LABEL maintainer="Anand Kummari" \
+      description="Multimodal biometric recognition MLOps pipeline"
 
 WORKDIR /app
 
-# Install only runtime system dependencies
+# Install tini for proper PID-1 signal handling and minimal runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini \
     libgl1-mesa-glx \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
@@ -43,12 +47,19 @@ COPY src/ src/
 COPY configs/ configs/
 COPY scripts/ scripts/
 
-# Create data directories
-RUN mkdir -p data/raw data/processed data/cache checkpoints
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser \
+    && mkdir -p data/raw data/processed data/cache checkpoints \
+    && chown -R appuser:appuser /app
+USER appuser
 
 # Set Python path
 ENV PYTHONPATH="/app/src:${PYTHONPATH}"
 ENV PYTHONUNBUFFERED=1
 
-# Default command: show help
+# Basic health check — verify the package can be imported
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD python -c "import biometric" || exit 1
+
+ENTRYPOINT ["tini", "--"]
 CMD ["python", "-m", "biometric", "--help"]
