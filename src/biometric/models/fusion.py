@@ -9,15 +9,14 @@ modifying the training pipeline.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import torch
 import torch.nn as nn
 
 from biometric.data.registry import ModelRegistry
-from biometric.models.base import BaseFusionModel, BaseEncoder
-from biometric.models.iris_encoder import IrisEncoder
+from biometric.models.base import BaseFusionModel
 from biometric.models.fingerprint_encoder import FingerprintEncoder
+from biometric.models.iris_encoder import IrisEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,8 @@ class ConcatenationFusion(nn.Module):
             Fused feature tensor of shape (B, hidden_dim).
         """
         concatenated = torch.cat(list(features.values()), dim=1)
-        return self.projection(concatenated)
+        out: torch.Tensor = self.projection(concatenated)
+        return out
 
 
 class AttentionFusion(nn.Module):
@@ -83,12 +83,11 @@ class AttentionFusion(nn.Module):
     ) -> None:
         super().__init__()
         self.modality_names = list(input_dims.keys())
-        feature_dim = list(input_dims.values())[0]  # Assumes equal dims after projection
 
         # Project all modalities to the same dimension
-        self.projections = nn.ModuleDict({
-            name: nn.Linear(dim, hidden_dim) for name, dim in input_dims.items()
-        })
+        self.projections = nn.ModuleDict(
+            {name: nn.Linear(dim, hidden_dim) for name, dim in input_dims.items()}
+        )
 
         # Attention weight network
         self.attention = nn.Sequential(
@@ -113,10 +112,7 @@ class AttentionFusion(nn.Module):
             Fused feature tensor of shape (B, hidden_dim).
         """
         # Project all modalities to same dimension
-        projected = {
-            name: self.projections[name](feat)
-            for name, feat in features.items()
-        }
+        projected = {name: self.projections[name](feat) for name, feat in features.items()}
 
         # Compute attention weights
         concat_for_attn = torch.cat(list(projected.values()), dim=1)
@@ -127,7 +123,8 @@ class AttentionFusion(nn.Module):
         attn_weights = attn_weights.unsqueeze(-1)  # (B, M, 1)
         fused = (stacked * attn_weights).sum(dim=1)  # (B, hidden)
 
-        return self.output_projection(fused)
+        out: torch.Tensor = self.output_projection(fused)
+        return out
 
 
 # Mapping of fusion strategy names to their classes
@@ -154,9 +151,9 @@ class MultimodalFusionNet(BaseFusionModel):
     def __init__(
         self,
         num_classes: int = 45,
-        iris_encoder_cfg: Optional[dict] = None,
-        fingerprint_encoder_cfg: Optional[dict] = None,
-        fusion_cfg: Optional[dict] = None,
+        iris_encoder_cfg: dict | None = None,
+        fingerprint_encoder_cfg: dict | None = None,
+        fusion_cfg: dict | None = None,
     ) -> None:
         super().__init__(num_classes=num_classes)
 
@@ -239,4 +236,5 @@ class MultimodalFusionNet(BaseFusionModel):
 
         # Fuse and classify
         fused = self.fusion(encoded)
-        return self.classifier(fused)
+        logits: torch.Tensor = self.classifier(fused)
+        return logits

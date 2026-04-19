@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import torch
 
 from biometric.data.dataset import MultimodalBiometricDataset, SubjectSample
@@ -78,19 +77,13 @@ class TestMultimodalBiometricDataset:
 
     def test_nonexistent_directory(self, tmp_path: Path) -> None:
         """Test that a nonexistent directory is handled gracefully."""
-        dataset = MultimodalBiometricDataset(
-            data_dir=tmp_path / "nonexistent", split="train"
-        )
+        dataset = MultimodalBiometricDataset(data_dir=tmp_path / "nonexistent", split="train")
         assert len(dataset) == 0
 
     def test_eval_split_no_augmentation(self, tmp_data_dir: Path) -> None:
         """Test that eval split uses non-augmented transforms."""
-        dataset_train = MultimodalBiometricDataset(
-            data_dir=tmp_data_dir, split="train"
-        )
-        dataset_val = MultimodalBiometricDataset(
-            data_dir=tmp_data_dir, split="val"
-        )
+        dataset_train = MultimodalBiometricDataset(data_dir=tmp_data_dir, split="train")
+        dataset_val = MultimodalBiometricDataset(data_dir=tmp_data_dir, split="val")
         # Both should create valid datasets
         assert len(dataset_train) == len(dataset_val)
 

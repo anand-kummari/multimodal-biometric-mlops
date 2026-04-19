@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import numpy as np
 import pytest
@@ -30,7 +30,7 @@ def seed() -> int:
 
 
 @pytest.fixture
-def sample_batch() -> dict[str, torch.Tensor]:
+def sample_batch() -> dict[str, torch.Tensor | bool]:
     """Create a synthetic batch mimicking the dataset output.
 
     Returns a batch of 4 samples with all three modalities.
@@ -65,27 +65,21 @@ def tmp_data_dir() -> Generator[Path, None, None]:
         iris_left_dir = subject_dir / "iris_left"
         iris_left_dir.mkdir(parents=True)
         for img_idx in range(images_per_modality):
-            img = Image.fromarray(
-                np.random.randint(0, 255, (128, 128, 3), dtype=np.uint8)
-            )
+            img = Image.fromarray(np.random.randint(0, 255, (128, 128, 3), dtype=np.uint8))
             img.save(iris_left_dir / f"img_{img_idx:03d}.png")
 
         # Iris right
         iris_right_dir = subject_dir / "iris_right"
         iris_right_dir.mkdir(parents=True)
         for img_idx in range(images_per_modality):
-            img = Image.fromarray(
-                np.random.randint(0, 255, (128, 128, 3), dtype=np.uint8)
-            )
+            img = Image.fromarray(np.random.randint(0, 255, (128, 128, 3), dtype=np.uint8))
             img.save(iris_right_dir / f"img_{img_idx:03d}.png")
 
         # Fingerprint
         fp_dir = subject_dir / "fingerprint"
         fp_dir.mkdir(parents=True)
         for img_idx in range(images_per_modality):
-            img = Image.fromarray(
-                np.random.randint(0, 255, (128, 128), dtype=np.uint8)
-            )
+            img = Image.fromarray(np.random.randint(0, 255, (128, 128), dtype=np.uint8))
             img.save(fp_dir / f"finger_{img_idx:03d}.png")
 
     yield tmp_dir

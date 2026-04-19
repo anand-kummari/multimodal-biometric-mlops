@@ -11,9 +11,9 @@ returning a dictionary of modality tensors. Supports:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 from PIL import Image
@@ -22,10 +22,10 @@ from torchvision import transforms
 
 from biometric.data.registry import DatasetRegistry
 from biometric.data.transforms import (
-    iris_eval_transform,
-    iris_train_transform,
     fingerprint_eval_transform,
     fingerprint_train_transform,
+    iris_eval_transform,
+    iris_train_transform,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,9 +43,9 @@ class SubjectSample:
     """
 
     subject_id: int
-    iris_left_path: Optional[str] = None
-    iris_right_path: Optional[str] = None
-    fingerprint_path: Optional[str] = None
+    iris_left_path: str | None = None
+    iris_right_path: str | None = None
+    fingerprint_path: str | None = None
 
 
 @DatasetRegistry.register("multimodal_biometric")
@@ -70,7 +70,7 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         split: str = "train",
         iris_size: tuple[int, int] = (224, 224),
         fingerprint_size: tuple[int, int] = (224, 224),
-        modalities: Optional[list[str]] = None,
+        modalities: list[str] | None = None,
     ) -> None:
         self.data_dir = Path(data_dir)
         self.split = split
@@ -99,16 +99,6 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
     def _discover_samples(self) -> list[SubjectSample]:
         """Scan the data directory to build a list of samples.
 
-        Expected directory structure (after preprocessing):
-            data_dir/
-                subject_001/
-                    iris_left/
-                        img_001.png, img_002.png, ...
-                    iris_right/
-                        img_001.png, img_002.png, ...
-                    fingerprint/
-                        thumb_left.png, index_left.png, ...
-
         Each iris image paired with a fingerprint creates one sample.
         This approach maximizes the number of training samples by creating
         combinations of iris and fingerprint images per subject.
@@ -132,9 +122,9 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
             iris_right_dir = subject_dir / "iris_right"
             fingerprint_dir = subject_dir / "fingerprint"
 
-            iris_left_images = self._list_images(iris_left_dir)
-            iris_right_images = self._list_images(iris_right_dir)
-            fingerprint_images = self._list_images(fingerprint_dir)
+            iris_left_images: list[Path | None] = list(self._list_images(iris_left_dir))
+            iris_right_images: list[Path | None] = list(self._list_images(iris_right_dir))
+            fingerprint_images: list[Path | None] = list(self._list_images(fingerprint_dir))
 
             # Create combinatorial samples: each iris pair + fingerprint
             if not iris_left_images:
@@ -168,9 +158,7 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         if not directory.exists():
             return []
         extensions = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
-        return sorted(
-            [f for f in directory.iterdir() if f.suffix.lower() in extensions]
-        )
+        return sorted([f for f in directory.iterdir() if f.suffix.lower() in extensions])
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -227,9 +215,7 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         return result
 
     @staticmethod
-    def _load_and_transform(
-        image_path: str, transform: transforms.Compose
-    ) -> torch.Tensor:
+    def _load_and_transform(image_path: str, transform: transforms.Compose) -> torch.Tensor:
         """Load an image from disk and apply transforms.
 
         Args:
@@ -240,4 +226,5 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
             Transformed image tensor.
         """
         image = Image.open(image_path).convert("RGB")
-        return transform(image)
+        result: torch.Tensor = transform(image)
+        return result

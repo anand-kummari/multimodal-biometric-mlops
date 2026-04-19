@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Optional
 
 
 def setup_logging(
     level: str = "INFO",
     format_str: str = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
 ) -> None:
     """Configure the root logger with consistent formatting.
 

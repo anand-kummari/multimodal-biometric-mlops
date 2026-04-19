@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import numpy as np
@@ -12,26 +13,23 @@ from PIL import Image
 
 from biometric.preprocessing.parallel_processor import (
     ParallelPreprocessor,
-    PreprocessingResult,
     _process_single_image,
 )
 
 
 @pytest.fixture
-def tmp_image_dir() -> Path:
+def tmp_image_dir() -> Generator[Path, None, None]:
     """Create temporary directory with test images."""
     tmp_dir = Path(tempfile.mkdtemp())
     for i in range(5):
-        img = Image.fromarray(
-            np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
-        )
+        img = Image.fromarray(np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8))
         img.save(tmp_dir / f"test_{i:03d}.png")
     yield tmp_dir
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @pytest.fixture
-def tmp_output_dir() -> Path:
+def tmp_output_dir() -> Generator[Path, None, None]:
     """Create temporary output directory."""
     tmp_dir = Path(tempfile.mkdtemp())
     yield tmp_dir
@@ -72,9 +70,7 @@ class TestProcessSingleImage:
 class TestParallelPreprocessor:
     """Tests for the ParallelPreprocessor."""
 
-    def test_sequential_processing(
-        self, tmp_image_dir: Path, tmp_output_dir: Path
-    ) -> None:
+    def test_sequential_processing(self, tmp_image_dir: Path, tmp_output_dir: Path) -> None:
         """Test sequential fallback (no Ray)."""
         processor = ParallelPreprocessor(use_ray=False)
         results = processor.process_directory(
@@ -98,9 +94,7 @@ class TestParallelPreprocessor:
         )
         assert len(results) == 0
 
-    def test_output_files_created(
-        self, tmp_image_dir: Path, tmp_output_dir: Path
-    ) -> None:
+    def test_output_files_created(self, tmp_image_dir: Path, tmp_output_dir: Path) -> None:
         processor = ParallelPreprocessor(use_ray=False)
         processor.process_directory(
             source_dir=tmp_image_dir,

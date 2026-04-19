@@ -14,7 +14,7 @@ from pathlib import Path
 def train() -> None:
     """Launch the training pipeline via Hydra."""
     script = Path(__file__).resolve().parent.parent.parent / "scripts" / "train.py"
-    sys.exit(subprocess.call([sys.executable, str(script)] + sys.argv[1:]))
+    sys.exit(subprocess.call([sys.executable, str(script), *sys.argv[1:]]))
 
 
 def infer() -> None:
@@ -26,4 +26,4 @@ def infer() -> None:
 def preprocess() -> None:
     """Launch the preprocessing pipeline."""
     script = Path(__file__).resolve().parent.parent.parent / "scripts" / "preprocess.py"
-    sys.exit(subprocess.call([sys.executable, str(script)] + sys.argv[1:]))
+    sys.exit(subprocess.call([sys.executable, str(script), *sys.argv[1:]]))

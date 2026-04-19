@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-import torch
-
 from biometric.data.dataloader import create_dataloaders
 from biometric.data.dataset import MultimodalBiometricDataset
 
@@ -31,11 +28,13 @@ class TestCreateDataloaders:
         loaders = create_dataloaders(
             dataset, batch_size=2, num_workers=0, train_ratio=0.6, val_ratio=0.2
         )
-        split_total = (
-            len(loaders["train"].dataset)
-            + len(loaders["val"].dataset)
-            + len(loaders["test"].dataset)
-        )
+        train_ds = loaders["train"].dataset
+        val_ds = loaders["val"].dataset
+        test_ds = loaders["test"].dataset
+        assert hasattr(train_ds, "__len__")
+        assert hasattr(val_ds, "__len__")
+        assert hasattr(test_ds, "__len__")
+        split_total = len(train_ds) + len(val_ds) + len(test_ds)
         assert split_total == total
 
     def test_train_loader_shuffles(self, tmp_data_dir: Path) -> None:
@@ -68,5 +67,9 @@ class TestCreateDataloaders:
         loaders2 = create_dataloaders(dataset, batch_size=2, num_workers=0, seed=42)
 
         # Same split sizes
-        assert len(loaders1["train"].dataset) == len(loaders2["train"].dataset)
-        assert len(loaders1["val"].dataset) == len(loaders2["val"].dataset)
+        t1, t2 = loaders1["train"].dataset, loaders2["train"].dataset
+        v1, v2 = loaders1["val"].dataset, loaders2["val"].dataset
+        assert hasattr(t1, "__len__") and hasattr(t2, "__len__")
+        assert hasattr(v1, "__len__") and hasattr(v2, "__len__")
+        assert len(t1) == len(t2)
+        assert len(v1) == len(v2)

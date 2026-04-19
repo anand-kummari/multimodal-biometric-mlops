@@ -40,13 +40,13 @@ def main(cfg: DictConfig) -> None:
     Args:
         cfg: Hydra-composed configuration from YAML files.
     """
-    from biometric.utils.reproducibility import set_seed, get_device
-    from biometric.utils.logging import setup_logging
-    from biometric.data.dataset import MultimodalBiometricDataset
     from biometric.data.dataloader import create_dataloaders
+    from biometric.data.dataset import MultimodalBiometricDataset
     from biometric.models.fusion import MultimodalFusionNet
+    from biometric.training.callbacks import EarlyStopping, ModelCheckpoint, TrainingCallback
     from biometric.training.trainer import Trainer
-    from biometric.training.callbacks import EarlyStopping, ModelCheckpoint
+    from biometric.utils.logging import setup_logging
+    from biometric.utils.reproducibility import get_device, set_seed
 
     # Setup
     setup_logging(level=cfg.logging.level, format_str=cfg.logging.format)
@@ -79,19 +79,20 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Model
-    model_cfg = cfg.model
+    model_cfg = cfg.model.model
+    iris_cfg = dict(OmegaConf.to_container(model_cfg.iris_encoder, resolve=True))  # type: ignore[arg-type]
+    fp_cfg = dict(OmegaConf.to_container(model_cfg.fingerprint_encoder, resolve=True))  # type: ignore[arg-type]
+    fusion_cfg_dict = dict(OmegaConf.to_container(model_cfg.fusion, resolve=True))  # type: ignore[arg-type]
     model = MultimodalFusionNet(
         num_classes=model_cfg.num_classes,
-        iris_encoder_cfg=OmegaConf.to_container(model_cfg.iris_encoder, resolve=True),
-        fingerprint_encoder_cfg=OmegaConf.to_container(
-            model_cfg.fingerprint_encoder, resolve=True
-        ),
-        fusion_cfg=OmegaConf.to_container(model_cfg.fusion, resolve=True),
+        iris_encoder_cfg=iris_cfg,
+        fingerprint_encoder_cfg=fp_cfg,
+        fusion_cfg=fusion_cfg_dict,
     )
 
     # Callbacks
-    train_cfg = cfg.training
-    callbacks = []
+    train_cfg = cfg.training.training
+    callbacks: list[TrainingCallback] = []
 
     if train_cfg.early_stopping.enabled:
         callbacks.append(

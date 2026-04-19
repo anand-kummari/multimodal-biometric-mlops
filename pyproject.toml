@@ -70,8 +70,29 @@ select = [
 ignore = [
     "D100",   # missing module docstring
     "D104",   # missing public package docstring
+    "D105",   # missing docstring in magic method
+    "D107",   # missing docstring in __init__
     "ANN101", # missing type annotation for self
     "ANN102", # missing type annotation for cls
+    "ANN401", # disallow typing.Any
+    "SIM115", # use context handler for opening files
+    "UP038",  # use X | Y in isinstance
+    "TCH",    # type-checking block imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "D102",   # test methods don't need docstrings
+    "D103",   # test functions don't need docstrings
+    "ANN",    # test code doesn't need full type annotations
+    "S101",   # assert is expected in tests
+]
+"scripts/**/*.py" = [
+    "D103",   # script helper functions
+]
+"benchmarks/**/*.py" = [
+    "D103",   # benchmark helper functions
+    "ANN",    # benchmark code doesn't need full annotations
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -86,7 +107,15 @@ check_untyped_defs = true
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["ray.*", "hydra.*", "omegaconf.*"]
+module = [
+    "ray.*",
+    "hydra",
+    "hydra.*",
+    "omegaconf",
+    "omegaconf.*",
+    "torchvision.*",
+    "pyarrow.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

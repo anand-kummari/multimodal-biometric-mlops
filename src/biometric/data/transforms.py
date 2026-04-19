@@ -7,9 +7,6 @@ pipelines are registered via the TransformRegistry for config-driven selection.
 
 from __future__ import annotations
 
-from typing import Optional
-
-import torch
 from torchvision import transforms
 
 from biometric.data.registry import TransformRegistry
@@ -34,20 +31,24 @@ def _build_iris_transforms(
     transform_list: list[transforms.Transform] = []
 
     if augment:
-        transform_list.extend([
-            transforms.Resize(image_size),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=10),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        transform_list.extend(
+            [
+                transforms.Resize(image_size),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomRotation(degrees=10),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
     else:
-        transform_list.extend([
-            transforms.Resize(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        transform_list.extend(
+            [
+                transforms.Resize(image_size),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
     return transforms.Compose(transform_list)
 
@@ -71,21 +72,25 @@ def _build_fingerprint_transforms(
     transform_list: list[transforms.Transform] = []
 
     if augment:
-        transform_list.extend([
-            transforms.Resize(image_size),
-            transforms.Grayscale(num_output_channels=1),
-            transforms.RandomRotation(degrees=5),
-            transforms.RandomAffine(degrees=0, translate=(0.05, 0.05)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5], std=[0.5]),
-        ])
+        transform_list.extend(
+            [
+                transforms.Resize(image_size),
+                transforms.Grayscale(num_output_channels=1),
+                transforms.RandomRotation(degrees=5),
+                transforms.RandomAffine(degrees=0, translate=(0.05, 0.05)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5], std=[0.5]),
+            ]
+        )
     else:
-        transform_list.extend([
-            transforms.Resize(image_size),
-            transforms.Grayscale(num_output_channels=1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5], std=[0.5]),
-        ])
+        transform_list.extend(
+            [
+                transforms.Resize(image_size),
+                transforms.Grayscale(num_output_channels=1),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5], std=[0.5]),
+            ]
+        )
 
     return transforms.Compose(transform_list)
 

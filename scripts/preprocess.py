@@ -120,35 +120,50 @@ def main() -> None:
     """Entry point for preprocessing pipeline."""
     parser = argparse.ArgumentParser(description="Preprocess biometric images")
     parser.add_argument(
-        "--raw-dir", type=str, default="data/raw",
+        "--raw-dir",
+        type=str,
+        default="data/raw",
         help="Raw data directory",
     )
     parser.add_argument(
-        "--processed-dir", type=str, default="data/processed",
+        "--processed-dir",
+        type=str,
+        default="data/processed",
         help="Processed data output directory",
     )
     parser.add_argument(
-        "--cache-dir", type=str, default="data/cache",
+        "--cache-dir",
+        type=str,
+        default="data/cache",
         help="Arrow cache output directory",
     )
     parser.add_argument(
-        "--target-size", type=int, nargs=2, default=[224, 224],
+        "--target-size",
+        type=int,
+        nargs=2,
+        default=[224, 224],
         help="Target image size (width height)",
     )
     parser.add_argument(
-        "--no-ray", action="store_true",
+        "--no-ray",
+        action="store_true",
         help="Disable Ray (use sequential processing)",
     )
     parser.add_argument(
-        "--num-cpus", type=int, default=None,
+        "--num-cpus",
+        type=int,
+        default=None,
         help="Number of CPUs for Ray (default: auto)",
     )
     parser.add_argument(
-        "--cache-only", action="store_true",
+        "--cache-only",
+        action="store_true",
         help="Only build Arrow cache (skip image preprocessing)",
     )
     parser.add_argument(
-        "--compression", type=str, default="snappy",
+        "--compression",
+        type=str,
+        default="snappy",
         choices=["snappy", "zstd", "none"],
         help="Arrow cache compression",
     )

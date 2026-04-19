@@ -1,23 +1,4 @@
-"""PyArrow-based caching layer for preprocessed image data.
-
-This module addresses a key data loading bottleneck: repeated image decoding
-and transformation. By serializing preprocessed tensors to Apache Arrow format,
-subsequent data loading iterations skip expensive I/O and decoding operations.
-
-Architecture Decision:
-    Arrow/Parquet was chosen over alternatives because:
-    - Columnar format enables efficient partial reads (specific modalities)
-    - Built-in compression (snappy/zstd) reduces disk I/O
-    - Zero-copy reads minimize memory overhead
-    - Integrates naturally with Ray for distributed preprocessing
-
-    See docs/adr/002-pyarrow-caching.md for full rationale.
-
-Performance Impact:
-    - First run (cold): ~10x slower (preprocessing + serialization overhead)
-    - Subsequent runs (warm): ~3-5x faster data loading vs raw image decode
-    - Cache invalidation via hash of source file list + transform config
-"""
+"""PyArrow-based caching layer for preprocessed image data."""
 
 from __future__ import annotations
 
@@ -26,7 +7,7 @@ import io
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pyarrow as pa
@@ -74,9 +55,7 @@ class ArrowCacheWriter:
                 serialized[f"{key}_data"] = _tensor_to_bytes(value)
                 serialized[f"{key}_shape"] = json.dumps(list(value.shape))
                 serialized[f"{key}_dtype"] = str(value.dtype)
-            elif isinstance(value, bool):
-                serialized[key] = value
-            elif isinstance(value, (int, float)):
+            elif isinstance(value, (bool, int, float)):
                 serialized[key] = value
             else:
                 serialized[key] = str(value)
@@ -90,9 +69,7 @@ class ArrowCacheWriter:
         """Flush any remaining samples and write metadata."""
         if self._buffer:
             self._flush()
-        logger.info(
-            "Cache finalized: %d files written to %s", self._file_index, self.cache_dir
-        )
+        logger.info("Cache finalized: %d files written to %s", self._file_index, self.cache_dir)
 
     def _flush(self) -> None:
         """Write buffered samples to a Parquet file."""
@@ -193,9 +170,7 @@ class ArrowCacheReader:
                 if data_bytes and shape_str and dtype_str:
                     tensor = _bytes_to_tensor(data_bytes, shape_str, dtype_str)
                     result[base_key] = tensor
-                    processed_keys.update(
-                        {key, f"{base_key}_shape", f"{base_key}_dtype"}
-                    )
+                    processed_keys.update({key, f"{base_key}_shape", f"{base_key}_dtype"})
             elif key not in processed_keys:
                 value = row[key][0]
                 result[key] = value

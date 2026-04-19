@@ -1,16 +1,11 @@
-"""Performance profiling utilities for data loading and training.
-
-Provides lightweight instrumentation to measure throughput, latency,
-and identify bottlenecks in the data pipeline.
-"""
+"""Performance profiling utilities for data loading and training."""
 
 from __future__ import annotations
 
 import logging
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Generator
+from typing import Any
 
 import torch
 from torch.utils.data import DataLoader
@@ -77,7 +72,7 @@ class Timer:
         self._end: float = 0.0
         self.result: TimingResult = TimingResult(name=name, elapsed_seconds=0.0)
 
-    def __enter__(self) -> "Timer":
+    def __enter__(self) -> Timer:
         self._start = time.perf_counter()
         return self
 
@@ -161,9 +156,7 @@ def profile_dataloader(
         timer.result.samples_processed = samples
         profile.results.append(timer.result)
 
-        logger.info(
-            "Epoch %d/%d: %s", epoch + 1, num_epochs, timer.result.summary()
-        )
+        logger.info("Epoch %d/%d: %s", epoch + 1, num_epochs, timer.result.summary())
 
     return profile
 

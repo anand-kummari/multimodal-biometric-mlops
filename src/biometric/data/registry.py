@@ -1,9 +1,5 @@
 """Registry pattern for dynamic registration of datasets and transforms.
 
-The Registry pattern enables config-driven instantiation of components without
-hard-coding class references. This is essential for scalable systems where new
-datasets or transform pipelines can be added without modifying existing code.
-
 Usage:
     @DatasetRegistry.register("multimodal_biometric")
     class MultimodalBiometricDataset(BaseDataset):
@@ -16,7 +12,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Any, TypeVar, Generic
+from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +21,6 @@ T = TypeVar("T")
 
 class Registry(Generic[T]):
     """Generic registry for dynamically registering and retrieving classes.
-
-    This pattern decouples component creation from component usage, enabling
-    config-driven instantiation via Hydra or similar configuration systems.
 
     Args:
         name: Human-readable name for this registry (used in error messages).
@@ -76,10 +69,7 @@ class Registry(Generic[T]):
         """
         if key not in self._registry:
             available = ", ".join(sorted(self._registry.keys()))
-            raise KeyError(
-                f"'{key}' not found in {self._name} registry. "
-                f"Available: [{available}]"
-            )
+            raise KeyError(f"'{key}' not found in {self._name} registry. Available: [{available}]")
         return self._registry[key]
 
     def list_registered(self) -> list[str]:

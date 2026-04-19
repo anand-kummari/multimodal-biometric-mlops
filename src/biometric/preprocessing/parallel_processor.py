@@ -2,20 +2,6 @@
 
 Distributes image preprocessing (resize, normalize, augment) across
 multiple CPU cores using Ray for significant speedup on large datasets.
-
-Architecture Decision:
-    Ray was chosen over Python multiprocessing because:
-    1. Automatic serialization of complex objects (PIL images, transforms)
-    2. Built-in task scheduling and load balancing
-    3. Seamless scaling from local to distributed clusters (Azure, K8s)
-    4. Shared memory via the object store reduces data copying
-
-    See docs/adr/003-ray-preprocessing.md for full rationale.
-
-Scalability Notes:
-    - Current: Single-node Ray with auto-detected CPUs
-    - Scale to cluster: Change ray.init() to connect to Ray cluster on K8s
-    - Azure integration: Ray on AKS with autoscaling node pools
 """
 
 from __future__ import annotations
@@ -24,7 +10,6 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional
 
 from PIL import Image
 
@@ -46,7 +31,7 @@ class PreprocessingResult:
     source_path: str
     output_path: str
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     elapsed_ms: float = 0.0
 
 
@@ -69,8 +54,8 @@ def _process_single_image(
     """
     start = time.perf_counter()
     try:
-        img = Image.open(source_path)
-        img = img.resize(target_size, Image.Resampling.LANCZOS)
+        raw_img = Image.open(source_path)
+        img = raw_img.resize(target_size, Image.Resampling.LANCZOS)
 
         output_dir = Path(output_path).parent
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -107,7 +92,7 @@ class ParallelPreprocessor:
 
     def __init__(
         self,
-        num_cpus: Optional[int] = None,
+        num_cpus: int | None = None,
         use_ray: bool = True,
     ) -> None:
         self.num_cpus = num_cpus
@@ -142,7 +127,7 @@ class ParallelPreprocessor:
         source_dir: str | Path,
         output_dir: str | Path,
         target_size: tuple[int, int] = (224, 224),
-        extensions: Optional[set[str]] = None,
+        extensions: set[str] | None = None,
     ) -> list[PreprocessingResult]:
         """Preprocess all images in a directory tree.
 
@@ -160,9 +145,7 @@ class ParallelPreprocessor:
         extensions = extensions or {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
 
         # Discover all image files
-        image_files = [
-            f for f in source_dir.rglob("*") if f.suffix.lower() in extensions
-        ]
+        image_files = [f for f in source_dir.rglob("*") if f.suffix.lower() in extensions]
 
         if not image_files:
             logger.warning("No image files found in %s", source_dir)
@@ -178,10 +161,7 @@ class ParallelPreprocessor:
             tasks.append((str(img_path), str(out_path), target_size))
 
         # Process with Ray or sequentially
-        if self.use_ray:
-            results = self._process_with_ray(tasks)
-        else:
-            results = self._process_sequential(tasks)
+        results = self._process_with_ray(tasks) if self.use_ray else self._process_sequential(tasks)
 
         # Report summary
         successes = sum(1 for r in results if r.success)
@@ -204,14 +184,13 @@ class ParallelPreprocessor:
         import ray
 
         remote_fn = ray.remote(_process_single_image)
-        futures = [
-            remote_fn.remote(src, out, size) for src, out, size in tasks
-        ]
-        return ray.get(futures)
+        futures = [remote_fn.remote(src, out, size) for src, out, size in tasks]
+        results: list[PreprocessingResult] = ray.get(futures)
+        return results
 
     @staticmethod
     def _process_sequential(
-        tasks: list[tuple[str, str, tuple[int, int]]]
+        tasks: list[tuple[str, str, tuple[int, int]]],
     ) -> list[PreprocessingResult]:
         """Process tasks sequentially (fallback when Ray is unavailable)."""
         results = []

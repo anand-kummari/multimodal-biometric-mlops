@@ -1,9 +1,4 @@
-"""Iris modality encoder.
-
-A lightweight CNN encoder for extracting feature embeddings from iris images.
-Designed to be simple and explainable — the assignment prioritizes architecture
-over model performance.
-"""
+"""Iris modality encoder."""
 
 from __future__ import annotations
 
@@ -76,4 +71,5 @@ class IrisEncoder(BaseEncoder):
             Feature vector of shape (B, feature_dim).
         """
         x = self.features(x)
-        return self.projection(x)
+        out: torch.Tensor = self.projection(x)
+        return out

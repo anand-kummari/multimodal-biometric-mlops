@@ -1,8 +1,4 @@
-"""Fingerprint modality encoder.
-
-A lightweight CNN encoder for extracting feature embeddings from fingerprint
-images. Fingerprints are typically grayscale, so the default input channel is 1.
-"""
+"""Fingerprint modality encoder."""
 
 from __future__ import annotations
 
@@ -16,10 +12,6 @@ from biometric.models.base import BaseEncoder
 @ModelRegistry.register("fingerprint_encoder")
 class FingerprintEncoder(BaseEncoder):
     """CNN-based feature extractor for fingerprint images.
-
-    Architecture mirrors the IrisEncoder but accepts single-channel
-    (grayscale) input by default. The shared architectural pattern makes
-    it easy to swap encoders or experiment with different backbones.
 
     Args:
         in_channels: Number of input channels (default: 1 for grayscale).
@@ -75,4 +67,5 @@ class FingerprintEncoder(BaseEncoder):
             Feature vector of shape (B, feature_dim).
         """
         x = self.features(x)
-        return self.projection(x)
+        out: torch.Tensor = self.projection(x)
+        return out

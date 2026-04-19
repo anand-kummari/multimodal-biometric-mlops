@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 import torch
 
-from biometric.models.iris_encoder import IrisEncoder
 from biometric.models.fingerprint_encoder import FingerprintEncoder
 from biometric.models.fusion import (
-    MultimodalFusionNet,
-    ConcatenationFusion,
     AttentionFusion,
+    ConcatenationFusion,
+    MultimodalFusionNet,
 )
+from biometric.models.iris_encoder import IrisEncoder
 
 
 class TestIrisEncoder:
@@ -101,9 +101,7 @@ class TestMultimodalFusionNet:
         logits = model(modality_inputs)
         assert logits.shape == (4, 45)
 
-    def test_output_logits_not_probabilities(
-        self, sample_batch: dict[str, torch.Tensor]
-    ) -> None:
+    def test_output_logits_not_probabilities(self, sample_batch: dict[str, torch.Tensor]) -> None:
         """Ensure output is raw logits (can be negative, sum != 1)."""
         model = MultimodalFusionNet(num_classes=45)
         modality_inputs = {

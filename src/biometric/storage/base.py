@@ -1,9 +1,5 @@
 """Abstract base class for storage backends.
 
-This abstraction allows the system to work transparently with local filesystems
-or cloud storage (e.g., Azure Blob Storage) by swapping the backend via
-configuration. This design follows the Strategy Pattern and enables:
-
 1. Local development with fast filesystem access
 2. Cloud deployment with Azure Blob Storage integration
 3. Easy addition of new storage backends (S3, GCS) without modifying consumers
@@ -12,8 +8,7 @@ configuration. This design follows the Strategy Pattern and enables:
 from __future__ import annotations
 
 import abc
-from pathlib import Path
-from typing import BinaryIO, Optional
+from typing import BinaryIO
 
 
 class StorageBackend(abc.ABC):
@@ -59,9 +54,7 @@ class StorageBackend(abc.ABC):
         """
 
     @abc.abstractmethod
-    def list_files(
-        self, directory: str, pattern: str = "*", recursive: bool = False
-    ) -> list[str]:
+    def list_files(self, directory: str, pattern: str = "*", recursive: bool = False) -> list[str]:
         """List files in a directory matching a glob pattern.
 
         Args:

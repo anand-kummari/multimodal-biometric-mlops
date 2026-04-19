@@ -1,9 +1,4 @@
-"""Abstract base classes for model components.
-
-Defines the contracts that all encoders and fusion models must follow.
-This enables the Strategy Pattern for swappable model architectures
-while maintaining a consistent interface for the training pipeline.
-"""
+"""Abstract base classes for model components."""
 
 from __future__ import annotations
 

@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, Dataset
 
 from biometric.models.fusion import MultimodalFusionNet
-from biometric.training.trainer import Trainer
 from biometric.training.callbacks import EarlyStopping, ModelCheckpoint
 from biometric.training.metrics import MetricTracker
+from biometric.training.trainer import Trainer
 
 
 def _create_dummy_loader(num_samples: int = 20, batch_size: int = 4) -> DataLoader:
     """Create a DataLoader with synthetic multimodal data."""
 
-    class DummyDataset:
+    class DummyDataset(Dataset):  # type: ignore[type-arg]
         def __init__(self, size: int) -> None:
             self.size = size
 
@@ -65,9 +65,7 @@ class TestTrainer:
         tracker = trainer.fit(train_loader, val_loader, epochs=2)
         assert len(tracker.history) == 2
 
-    def test_save_training_config(
-        self, device: torch.device, tmp_path: Path
-    ) -> None:
+    def test_save_training_config(self, device: torch.device, tmp_path: Path) -> None:
         """Test that training config is saved as JSON."""
         model = MultimodalFusionNet(num_classes=45)
         trainer = Trainer(model=model, device=device, mixed_precision=False)
@@ -117,9 +115,7 @@ class TestModelCheckpoint:
     """Tests for the ModelCheckpoint callback."""
 
     def test_saves_best_checkpoint(self, tmp_checkpoint_dir: Path) -> None:
-        cb = ModelCheckpoint(
-            checkpoint_dir=tmp_checkpoint_dir, metric="val_loss", mode="min"
-        )
+        cb = ModelCheckpoint(checkpoint_dir=tmp_checkpoint_dir, metric="val_loss", mode="min")
         model = MultimodalFusionNet(num_classes=45)
 
         cb.on_epoch_end(0, {"val_loss": 1.0}, model)
@@ -127,17 +123,13 @@ class TestModelCheckpoint:
         assert (tmp_checkpoint_dir / "checkpoint_last.pt").exists()
 
     def test_updates_best_on_improvement(self, tmp_checkpoint_dir: Path) -> None:
-        cb = ModelCheckpoint(
-            checkpoint_dir=tmp_checkpoint_dir, metric="val_loss", mode="min"
-        )
+        cb = ModelCheckpoint(checkpoint_dir=tmp_checkpoint_dir, metric="val_loss", mode="min")
         model = MultimodalFusionNet(num_classes=45)
 
         cb.on_epoch_end(0, {"val_loss": 1.0}, model)
         cb.on_epoch_end(1, {"val_loss": 0.5}, model)
 
-        checkpoint = torch.load(
-            tmp_checkpoint_dir / "checkpoint_best.pt", weights_only=True
-        )
+        checkpoint = torch.load(tmp_checkpoint_dir / "checkpoint_best.pt", weights_only=True)
         assert checkpoint["epoch"] == 1
 
 

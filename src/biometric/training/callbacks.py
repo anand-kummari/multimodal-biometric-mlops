@@ -1,17 +1,10 @@
-"""Training callbacks for early stopping and model checkpointing.
-
-Implements the Observer pattern — callbacks are independent, composable
-units that hook into the training loop at defined points. Adding new
-callbacks (e.g., learning rate logging, gradient histograms) requires
-no changes to the Trainer class.
-"""
+"""Training callbacks for early stopping and model checkpointing."""
 
 from __future__ import annotations
 
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -20,15 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class TrainingCallback(abc.ABC):
-    """Abstract base class for training callbacks.
+    """Abstract base class for training callbacks."""
 
-    Subclasses implement one or more hook methods that the Trainer
-    invokes at the appropriate points in the training loop.
-    """
-
-    def on_epoch_end(
-        self, epoch: int, metrics: dict[str, float], model: nn.Module
-    ) -> None:
+    @abc.abstractmethod
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], model: nn.Module) -> None:
         """Called at the end of each epoch.
 
         Args:
@@ -65,18 +53,14 @@ class EarlyStopping(TrainingCallback):
         self.mode = mode
         self.min_delta = min_delta
 
-        self._best_value: Optional[float] = None
+        self._best_value: float | None = None
         self._counter: int = 0
         self._stop: bool = False
 
-    def on_epoch_end(
-        self, epoch: int, metrics: dict[str, float], model: nn.Module
-    ) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], model: nn.Module) -> None:
         """Check if the metric has improved."""
         if self.metric not in metrics:
-            logger.warning(
-                "EarlyStopping: metric '%s' not found in epoch metrics", self.metric
-            )
+            logger.warning("EarlyStopping: metric '%s' not found in epoch metrics", self.metric)
             return
 
         current = metrics[self.metric]
@@ -147,11 +131,9 @@ class ModelCheckpoint(TrainingCallback):
         self.save_best = save_best
         self.save_last = save_last
 
-        self._best_value: Optional[float] = None
+        self._best_value: float | None = None
 
-    def on_epoch_end(
-        self, epoch: int, metrics: dict[str, float], model: nn.Module
-    ) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], model: nn.Module) -> None:
         """Save checkpoints based on metric performance."""
         if self.save_last:
             self._save(model, epoch, metrics, "last")

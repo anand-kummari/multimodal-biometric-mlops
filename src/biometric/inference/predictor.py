@@ -1,22 +1,20 @@
 """Inference pipeline for biometric identity prediction.
 
-Provides a clean, production-ready interface for loading a trained model
+Interface for loading a trained model
 checkpoint and running predictions on new multimodal biometric samples.
-Separates inference concerns from training to support deployment scenarios.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
-import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 
-from biometric.data.transforms import iris_eval_transform, fingerprint_eval_transform
+from biometric.data.transforms import fingerprint_eval_transform, iris_eval_transform
 from biometric.models.fusion import MultimodalFusionNet
 
 logger = logging.getLogger(__name__)
@@ -24,9 +22,6 @@ logger = logging.getLogger(__name__)
 
 class Predictor:
     """Loads a trained model and runs inference on biometric samples.
-
-    Encapsulates checkpoint loading, device management, and transform
-    application so that consumers only need to provide image paths.
 
     Args:
         checkpoint_path: Path to the saved model checkpoint (.pt file).
@@ -37,8 +32,8 @@ class Predictor:
     def __init__(
         self,
         checkpoint_path: str | Path,
-        device: Optional[torch.device] = None,
-        model_config: Optional[dict[str, Any]] = None,
+        device: torch.device | None = None,
+        model_config: dict[str, Any] | None = None,
     ) -> None:
         self.checkpoint_path = Path(checkpoint_path)
 
@@ -77,29 +72,23 @@ class Predictor:
     def _load_checkpoint(self) -> None:
         """Load model weights from checkpoint file."""
         if not self.checkpoint_path.exists():
-            raise FileNotFoundError(
-                f"Checkpoint not found: {self.checkpoint_path}"
-            )
+            raise FileNotFoundError(f"Checkpoint not found: {self.checkpoint_path}")
 
-        checkpoint = torch.load(
-            self.checkpoint_path, map_location=self.device, weights_only=True
-        )
+        checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=True)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.to(self.device)
         self.model.eval()
 
         epoch = checkpoint.get("epoch", "unknown")
         metrics = checkpoint.get("metrics", {})
-        logger.info(
-            "Loaded checkpoint from epoch %s, metrics: %s", epoch, metrics
-        )
+        logger.info("Loaded checkpoint from epoch %s, metrics: %s", epoch, metrics)
 
     @torch.no_grad()
     def predict(
         self,
-        iris_left_path: Optional[str] = None,
-        iris_right_path: Optional[str] = None,
-        fingerprint_path: Optional[str] = None,
+        iris_left_path: str | None = None,
+        iris_right_path: str | None = None,
+        fingerprint_path: str | None = None,
     ) -> dict[str, Any]:
         """Run inference on a single multimodal sample.
 
@@ -117,9 +106,7 @@ class Predictor:
         # Load and transform each modality
         iris_left = self._load_modality(iris_left_path, self.iris_transform, channels=3)
         iris_right = self._load_modality(iris_right_path, self.iris_transform, channels=3)
-        fingerprint = self._load_modality(
-            fingerprint_path, self.fingerprint_transform, channels=1
-        )
+        fingerprint = self._load_modality(fingerprint_path, self.fingerprint_transform, channels=1)
 
         # Add batch dimension and move to device
         modality_inputs = {
@@ -131,19 +118,17 @@ class Predictor:
         # Forward pass
         logits = self.model(modality_inputs)
         probabilities = torch.softmax(logits, dim=1).squeeze(0)
-        predicted_class = probabilities.argmax().item()
-        confidence = probabilities[predicted_class].item()
+        predicted_idx = int(probabilities.argmax().item())
+        confidence = float(probabilities[predicted_idx].item())
 
         return {
-            "predicted_class": predicted_class,
+            "predicted_class": predicted_idx,
             "confidence": confidence,
             "probabilities": probabilities.cpu().numpy().tolist(),
         }
 
     @torch.no_grad()
-    def predict_batch(
-        self, batch: dict[str, torch.Tensor]
-    ) -> dict[str, Any]:
+    def predict_batch(self, batch: dict[str, torch.Tensor]) -> dict[str, Any]:
         """Run inference on a batch from a DataLoader.
 
         Args:
@@ -170,7 +155,7 @@ class Predictor:
 
     def _load_modality(
         self,
-        image_path: Optional[str],
+        image_path: str | None,
         transform: transforms.Compose,
         channels: int,
     ) -> torch.Tensor:
@@ -182,4 +167,5 @@ class Predictor:
             return torch.zeros(channels, 224, 224)
 
         image = Image.open(image_path).convert("RGB")
-        return transform(image)
+        result: torch.Tensor = transform(image)
+        return result

@@ -1,17 +1,4 @@
-"""Training orchestrator with reproducibility and callback support.
-
-The Trainer class implements the Template Method pattern — it defines the
-overall training algorithm structure, while allowing customization through
-callbacks, configurable optimizers, schedulers, and mixed precision.
-
-Design Principles:
-    - Single Responsibility: Trainer only orchestrates; metrics, checkpointing,
-      and early stopping are delegated to callbacks.
-    - Open/Closed: New behavior (e.g., gradient logging) is added via callbacks,
-      not by modifying the Trainer.
-    - Reproducibility: Deterministic seeding, logged configs, and checkpoints
-      enable exact reproduction of any training run.
-"""
+"""Training orchestrator with reproducibility and callback support."""
 
 from __future__ import annotations
 
@@ -19,13 +6,13 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
-from torch.optim import Adam, AdamW, SGD
-from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR, ReduceLROnPlateau
+from torch.optim import SGD, Adam, AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau, StepLR
 from torch.utils.data import DataLoader
 
 from biometric.training.callbacks import TrainingCallback
@@ -72,8 +59,8 @@ class Trainer:
         warmup_epochs: int = 5,
         min_lr: float = 1e-5,
         mixed_precision: bool = True,
-        gradient_clip_max_norm: Optional[float] = 1.0,
-        callbacks: Optional[list[TrainingCallback]] = None,
+        gradient_clip_max_norm: float | None = 1.0,
+        callbacks: list[TrainingCallback] | None = None,
     ) -> None:
         self.model = model.to(device)
         self.device = device
@@ -87,17 +74,14 @@ class Trainer:
         # Optimizer
         if optimizer_name not in _OPTIMIZERS:
             raise ValueError(
-                f"Unknown optimizer: {optimizer_name!r}. "
-                f"Available: {list(_OPTIMIZERS.keys())}"
+                f"Unknown optimizer: {optimizer_name!r}. Available: {list(_OPTIMIZERS.keys())}"
             )
         self.optimizer = _OPTIMIZERS[optimizer_name](
             model.parameters(), lr=learning_rate, weight_decay=weight_decay
         )
 
         # Learning rate scheduler
-        self.scheduler = self._create_scheduler(
-            scheduler_type, warmup_epochs, min_lr
-        )
+        self.scheduler = self._create_scheduler(scheduler_type, warmup_epochs, min_lr)
 
         # Mixed precision scaler
         self.scaler = GradScaler("cuda", enabled=self.mixed_precision)
@@ -113,18 +97,14 @@ class Trainer:
             device,
         )
 
-    def _create_scheduler(
-        self, scheduler_type: str, warmup_epochs: int, min_lr: float
-    ) -> Any:
+    def _create_scheduler(self, scheduler_type: str, warmup_epochs: int, min_lr: float) -> Any:
         """Create a learning rate scheduler."""
         if scheduler_type == "cosine":
             return CosineAnnealingLR(self.optimizer, T_max=50, eta_min=min_lr)
         elif scheduler_type == "step":
             return StepLR(self.optimizer, step_size=10, gamma=0.1)
         elif scheduler_type == "plateau":
-            return ReduceLROnPlateau(
-                self.optimizer, mode="min", patience=5, factor=0.5
-            )
+            return ReduceLROnPlateau(self.optimizer, mode="min", patience=5, factor=0.5)
         else:
             logger.warning("Unknown scheduler '%s', using cosine", scheduler_type)
             return CosineAnnealingLR(self.optimizer, T_max=50, eta_min=min_lr)
@@ -161,7 +141,7 @@ class Trainer:
             all_metrics = {**train_metrics, **val_metrics}
 
             # Compute epoch metrics
-            epoch_result = self.metric_tracker.compute_epoch(epoch)
+            self.metric_tracker.compute_epoch(epoch)
             self.metric_tracker.reset()
 
             # Update scheduler
@@ -196,9 +176,7 @@ class Trainer:
         logger.info("Training complete in %.1fs", total_time)
         return self.metric_tracker
 
-    def _train_epoch(
-        self, dataloader: DataLoader[Any], epoch: int
-    ) -> dict[str, float]:
+    def _train_epoch(self, dataloader: DataLoader[Any], epoch: int) -> dict[str, float]:
         """Run one training epoch.
 
         Args:
@@ -213,7 +191,7 @@ class Trainer:
         correct = 0
         total = 0
 
-        for batch_idx, batch in enumerate(dataloader):
+        for _batch_idx, batch in enumerate(dataloader):
             # Move data to device
             modality_inputs = {
                 "iris_left": batch["iris_left"].to(self.device, non_blocking=True),
@@ -235,9 +213,7 @@ class Trainer:
             # Gradient clipping
             if self.gradient_clip_max_norm is not None:
                 self.scaler.unscale_(self.optimizer)
-                nn.utils.clip_grad_norm_(
-                    self.model.parameters(), self.gradient_clip_max_norm
-                )
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.gradient_clip_max_norm)
 
             self.scaler.step(self.optimizer)
             self.scaler.update()
@@ -256,9 +232,7 @@ class Trainer:
         return {"train_loss": avg_loss, "train_acc": accuracy}
 
     @torch.no_grad()
-    def _validate_epoch(
-        self, dataloader: DataLoader[Any], epoch: int
-    ) -> dict[str, float]:
+    def _validate_epoch(self, dataloader: DataLoader[Any], epoch: int) -> dict[str, float]:
         """Run one validation epoch.
 
         Args:
@@ -306,9 +280,7 @@ class Trainer:
             "mixed_precision": self.mixed_precision,
             "gradient_clip_max_norm": self.gradient_clip_max_norm,
             "device": str(self.device),
-            "model_parameters": sum(
-                p.numel() for p in self.model.parameters() if p.requires_grad
-            ),
+            "model_parameters": sum(p.numel() for p in self.model.parameters() if p.requires_grad),
         }
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)

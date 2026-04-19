@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
-from biometric.storage.base import StorageBackend
-from biometric.storage.local import LocalStorageBackend
 from biometric.storage.factory import create_storage_backend
+from biometric.storage.local import LocalStorageBackend
 
 
 @pytest.fixture
@@ -104,21 +103,27 @@ class TestStorageFactory:
     """Tests for the create_storage_backend factory."""
 
     def test_create_local_backend(self, tmp_storage_dir: Path) -> None:
-        backend = create_storage_backend({
-            "backend": "local",
-            "base_path": str(tmp_storage_dir),
-        })
+        backend = create_storage_backend(
+            {
+                "backend": "local",
+                "base_path": str(tmp_storage_dir),
+            }
+        )
         assert isinstance(backend, LocalStorageBackend)
 
     def test_create_default_is_local(self, tmp_storage_dir: Path) -> None:
-        backend = create_storage_backend({
-            "base_path": str(tmp_storage_dir),
-        })
+        backend = create_storage_backend(
+            {
+                "base_path": str(tmp_storage_dir),
+            }
+        )
         assert isinstance(backend, LocalStorageBackend)
 
     def test_unknown_backend_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown storage backend"):
-            create_storage_backend({
-                "backend": "s3",
-                "base_path": "/tmp",
-            })
+            create_storage_backend(
+                {
+                    "backend": "s3",
+                    "base_path": "/tmp",
+                }
+            )

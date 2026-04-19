@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from biometric.storage.base import StorageBackend
 
@@ -53,18 +53,13 @@ class LocalStorageBackend(StorageBackend):
         resolved.parent.mkdir(parents=True, exist_ok=True)
         resolved.write_bytes(data)
 
-    def list_files(
-        self, directory: str, pattern: str = "*", recursive: bool = False
-    ) -> list[str]:
+    def list_files(self, directory: str, pattern: str = "*", recursive: bool = False) -> list[str]:
         """List files matching a glob pattern."""
         dir_path = self._resolve(directory)
         if not dir_path.exists():
             return []
 
-        if recursive:
-            glob_pattern = f"**/{pattern}"
-        else:
-            glob_pattern = pattern
+        glob_pattern = f"**/{pattern}" if recursive else pattern
 
         return [
             str(p.relative_to(self._base_path))
@@ -77,7 +72,7 @@ class LocalStorageBackend(StorageBackend):
         resolved = self._resolve(path)
         if "w" in mode or "a" in mode:
             resolved.parent.mkdir(parents=True, exist_ok=True)
-        return open(resolved, mode)  # noqa: SIM115
+        return cast(BinaryIO, open(resolved, mode))
 
     def resolve_path(self, path: str) -> str:
         """Resolve a relative path to its absolute form."""

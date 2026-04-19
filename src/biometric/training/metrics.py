@@ -1,9 +1,4 @@
-"""Metric tracking for training and evaluation.
-
-Provides a lightweight metric aggregation system that collects per-batch
-values and computes epoch-level statistics. Designed to be extensible
-for additional metrics without modifying the training loop.
-"""
+"""Metric tracking for training and evaluation."""
 
 from __future__ import annotations
 
@@ -118,7 +113,4 @@ class MetricTracker:
 
     def to_dict(self) -> list[dict[str, Any]]:
         """Export history as a list of dictionaries (for JSON serialization)."""
-        return [
-            {"epoch": em.epoch, **em.metrics}
-            for em in self._epoch_history
-        ]
+        return [{"epoch": em.epoch, **em.metrics} for em in self._epoch_history]

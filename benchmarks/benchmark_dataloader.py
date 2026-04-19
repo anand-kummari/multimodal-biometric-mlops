@@ -25,6 +25,8 @@ import sys
 import time
 from pathlib import Path
 
+from torch.utils.data import Dataset
+
 logger = logging.getLogger(__name__)
 
 # Add project root to path
@@ -32,9 +34,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 
-def benchmark_num_workers(
-    dataset_path: Path, num_epochs: int = 3
-) -> list[dict]:
+def benchmark_num_workers(dataset_path: Path, num_epochs: int = 3) -> list[dict]:
     """Benchmark DataLoader with different num_workers settings.
 
     Args:
@@ -44,13 +44,15 @@ def benchmark_num_workers(
     Returns:
         List of benchmark result dictionaries.
     """
-    from biometric.data.dataset import MultimodalBiometricDataset
-    from biometric.utils.profiling import profile_dataloader
     from torch.utils.data import DataLoader
 
-    dataset = MultimodalBiometricDataset(data_dir=dataset_path, split="train")
+    from biometric.data.dataset import MultimodalBiometricDataset
+    from biometric.utils.profiling import profile_dataloader
 
-    if len(dataset) == 0:
+    real_dataset = MultimodalBiometricDataset(data_dir=dataset_path, split="train")
+
+    dataset: Dataset = real_dataset  # type: ignore[type-arg]
+    if len(real_dataset) == 0:
         logger.warning("Dataset is empty. Generating synthetic benchmark data.")
         dataset = _create_synthetic_dataset(num_samples=200)
 
@@ -66,41 +68,42 @@ def benchmark_num_workers(
         name = f"workers={config['num_workers']}_pin={config['pin_memory']}"
         logger.info("Benchmarking: %s", name)
 
-        loader_kwargs = {
-            "batch_size": 16,
-            "shuffle": True,
-            **config,
-        }
+        num_workers = int(config["num_workers"])
+        pin_memory = bool(config["pin_memory"])
+        persistent = bool(config.get("persistent_workers", False)) and num_workers > 0
 
-        # persistent_workers requires num_workers > 0
-        if config["num_workers"] == 0:
-            loader_kwargs.pop("persistent_workers", None)
-
-        loader = DataLoader(dataset, **loader_kwargs)
+        loader = DataLoader(
+            dataset,
+            batch_size=16,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            persistent_workers=persistent,
+        )
         profile = profile_dataloader(loader, num_epochs=num_epochs, name=name)
 
-        results.append({
-            "config": config,
-            "name": name,
-            "avg_throughput_sps": profile.avg_throughput,
-            "avg_batch_time_ms": profile.avg_batch_time_ms,
-            "epoch_results": [
-                {
-                    "epoch": i,
-                    "throughput": r.throughput,
-                    "batch_time_ms": r.avg_batch_time,
-                    "total_seconds": r.elapsed_seconds,
-                }
-                for i, r in enumerate(profile.results)
-            ],
-        })
+        results.append(
+            {
+                "config": config,
+                "name": name,
+                "avg_throughput_sps": profile.avg_throughput,
+                "avg_batch_time_ms": profile.avg_batch_time_ms,
+                "epoch_results": [
+                    {
+                        "epoch": i,
+                        "throughput": r.throughput,
+                        "batch_time_ms": r.avg_batch_time,
+                        "total_seconds": r.elapsed_seconds,
+                    }
+                    for i, r in enumerate(profile.results)
+                ],
+            }
+        )
 
     return results
 
 
-def benchmark_preprocessing(
-    raw_dir: Path, processed_dir: Path
-) -> dict:
+def benchmark_preprocessing(raw_dir: Path, processed_dir: Path) -> dict:
     """Benchmark sequential vs Ray parallel preprocessing.
 
     Args:
@@ -148,13 +151,11 @@ def benchmark_preprocessing(
     }
 
     # Speedup
-    if seq_time > 0:
-        results["speedup"] = seq_time / max(ray_time, 0.001)
-
-    return results
+    speedup = seq_time / max(ray_time, 0.001) if seq_time > 0 else 0.0
+    return {**results, "speedup": speedup}
 
 
-def _create_synthetic_dataset(num_samples: int = 200) -> "SyntheticDataset":
+def _create_synthetic_dataset(num_samples: int = 200) -> Dataset:  # type: ignore[type-arg]
     """Create a synthetic dataset for benchmarking when real data is unavailable."""
     import torch
     from torch.utils.data import Dataset
@@ -230,23 +231,32 @@ def main() -> None:
     """Entry point for benchmarking."""
     parser = argparse.ArgumentParser(description="Benchmark data loading performance")
     parser.add_argument(
-        "--data-dir", type=str, default="data/processed",
+        "--data-dir",
+        type=str,
+        default="data/processed",
         help="Path to processed dataset",
     )
     parser.add_argument(
-        "--raw-dir", type=str, default="data/raw",
+        "--raw-dir",
+        type=str,
+        default="data/raw",
         help="Path to raw dataset (for preprocessing benchmarks)",
     )
     parser.add_argument(
-        "--output-dir", type=str, default="benchmarks/results",
+        "--output-dir",
+        type=str,
+        default="benchmarks/results",
         help="Directory to save benchmark results",
     )
     parser.add_argument(
-        "--epochs", type=int, default=3,
+        "--epochs",
+        type=int,
+        default=3,
         help="Number of epochs for dataloader benchmarks",
     )
     parser.add_argument(
-        "--skip-preprocessing", action="store_true",
+        "--skip-preprocessing",
+        action="store_true",
         help="Skip preprocessing benchmarks",
     )
     args = parser.parse_args()

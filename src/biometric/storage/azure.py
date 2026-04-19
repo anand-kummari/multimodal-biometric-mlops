@@ -1,15 +1,4 @@
-"""Azure Blob Storage backend (stub implementation).
-
-This module demonstrates infrastructure-aware design by providing the
-interface for Azure Blob Storage integration. In a production environment
-at Bosch, this would replace the local backend for cloud-based training
-pipelines running on Azure ML compute clusters.
-
-Note:
-    This is a design stub showing how the StorageBackend abstraction
-    enables seamless cloud migration. The actual Azure SDK calls are
-    commented out but show the intended implementation pattern.
-"""
+"""Azure Blob Storage backend (stub implementation)."""
 
 from __future__ import annotations
 
@@ -23,10 +12,6 @@ logger = logging.getLogger(__name__)
 
 class AzureBlobStorageBackend(StorageBackend):
     """Storage backend for Azure Blob Storage.
-
-    This implementation would use the azure-storage-blob SDK to interact
-    with Azure Blob containers. It follows the same interface as
-    LocalStorageBackend, enabling zero-code-change migration.
 
     Args:
         connection_string: Azure Storage account connection string.
@@ -52,11 +37,7 @@ class AzureBlobStorageBackend(StorageBackend):
             "AzureBlobStorageBackend initialized (stub) for container: %s",
             container_name,
         )
-        raise NotImplementedError(
-            "AzureBlobStorageBackend is a design stub. "
-            "Install azure-storage-blob and implement for production use. "
-            "See docstring for the intended implementation pattern."
-        )
+        raise NotImplementedError("Install azure-storage-blob and implement for production use. ")
 
     def exists(self, path: str) -> bool:
         """Check if a blob exists."""
@@ -70,9 +51,7 @@ class AzureBlobStorageBackend(StorageBackend):
         """Upload bytes to a blob."""
         raise NotImplementedError
 
-    def list_files(
-        self, directory: str, pattern: str = "*", recursive: bool = False
-    ) -> list[str]:
+    def list_files(self, directory: str, pattern: str = "*", recursive: bool = False) -> list[str]:
         """List blobs with a given prefix."""
         raise NotImplementedError
 

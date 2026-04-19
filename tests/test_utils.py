@@ -5,16 +5,15 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
-from typing import Generator
 
 import numpy as np
 import pytest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from biometric.utils.reproducibility import set_seed, get_device
 from biometric.utils.logging import setup_logging
-from biometric.utils.profiling import Timer, TimingResult, DataLoaderProfile, profile_dataloader
+from biometric.utils.profiling import DataLoaderProfile, Timer, TimingResult, profile_dataloader
+from biometric.utils.reproducibility import get_device, set_seed
 
 
 class TestSetSeed:
@@ -96,15 +95,11 @@ class TestTimingResult:
         assert result.throughput == pytest.approx(50.0)
 
     def test_throughput_zero_time(self) -> None:
-        result = TimingResult(
-            name="test", elapsed_seconds=0.0, samples_processed=10
-        )
+        result = TimingResult(name="test", elapsed_seconds=0.0, samples_processed=10)
         assert result.throughput == float("inf")
 
     def test_avg_batch_time(self) -> None:
-        result = TimingResult(
-            name="test", elapsed_seconds=1.0, iterations=10
-        )
+        result = TimingResult(name="test", elapsed_seconds=1.0, iterations=10)
         assert result.avg_batch_time == pytest.approx(100.0)
 
     def test_avg_batch_time_zero_iterations(self) -> None:
@@ -112,9 +107,7 @@ class TestTimingResult:
         assert result.avg_batch_time == 0.0
 
     def test_summary(self) -> None:
-        result = TimingResult(
-            name="bench", elapsed_seconds=1.5, iterations=5, samples_processed=50
-        )
+        result = TimingResult(name="bench", elapsed_seconds=1.5, iterations=5, samples_processed=50)
         summary = result.summary()
         assert "bench" in summary
         assert "1.500s" in summary

@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 import torch
 
 from biometric.data.arrow_cache import (
-    ArrowCacheWriter,
     ArrowCacheReader,
-    compute_cache_key,
-    _tensor_to_bytes,
+    ArrowCacheWriter,
     _bytes_to_tensor,
+    _tensor_to_bytes,
+    compute_cache_key,
 )
 
 
@@ -83,9 +83,7 @@ class TestArrowCacheWriter:
     def test_compression_options(self, tmp_cache_dir: Path) -> None:
         for compression in ["snappy", "zstd", "none"]:
             sub_dir = tmp_cache_dir / compression
-            writer = ArrowCacheWriter(
-                cache_dir=sub_dir, compression=compression, batch_size=5
-            )
+            writer = ArrowCacheWriter(cache_dir=sub_dir, compression=compression, batch_size=5)
             writer.add_sample({"data": torch.randn(3, 32, 32), "label": 0})
             writer.finalize()
             assert len(list(sub_dir.glob("*.parquet"))) == 1

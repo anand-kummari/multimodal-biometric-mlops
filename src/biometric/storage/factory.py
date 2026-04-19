@@ -1,9 +1,4 @@
-"""Factory for creating storage backend instances from configuration.
-
-Uses the Factory Pattern to instantiate the correct storage backend
-based on the Hydra configuration, keeping consumer code decoupled
-from specific backend implementations.
-"""
+"""Factory for creating storage backend instances from configuration."""
 
 from __future__ import annotations
 
@@ -43,14 +38,10 @@ def create_storage_backend(cfg: DictConfig | dict[str, Any]) -> StorageBackend:
 
     if backend_type not in _BACKEND_MAP:
         available = ", ".join(sorted(_BACKEND_MAP.keys()))
-        raise ValueError(
-            f"Unknown storage backend: {backend_type!r}. Available: [{available}]"
-        )
-
-    backend_cls = _BACKEND_MAP[backend_type]
+        raise ValueError(f"Unknown storage backend: {backend_type!r}. Available: [{available}]")
 
     if backend_type == "local":
-        backend = backend_cls(base_path=base_path)
+        backend = LocalStorageBackend(base_path=base_path)
     else:
         # Azure backend would need connection_string and container_name
         raise ValueError(

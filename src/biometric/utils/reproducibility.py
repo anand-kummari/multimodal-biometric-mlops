@@ -21,10 +21,6 @@ def set_seed(seed: int = 42) -> None:
 
     Args:
         seed: Integer seed value. Default is 42.
-
-    Note:
-        Setting CUBLAS_WORKSPACE_CONFIG and enabling deterministic algorithms
-        may have a minor performance impact but ensures full reproducibility.
     """
     random.seed(seed)
     np.random.seed(seed)

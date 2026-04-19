@@ -10,10 +10,10 @@ Centralizes DataLoader construction with production-ready defaults:
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import torch
-from torch.utils.data import DataLoader, Dataset, Subset, random_split
+from torch.utils.data import DataLoader, Dataset, random_split
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,9 @@ def _seed_worker(worker_id: int) -> None:
     which can lead to correlated augmentation patterns. This function
     ensures each worker has a unique, deterministic seed.
     """
-    import numpy as np
     import random
+
+    import numpy as np
 
     worker_seed = torch.initial_seed() % 2**32
     np.random.seed(worker_seed)
@@ -66,6 +67,7 @@ def create_dataloaders(
         Dictionary with 'train', 'val', 'test' DataLoader instances.
     """
     # Compute split sizes
+    assert hasattr(dataset, "__len__"), "Dataset must implement __len__"
     total = len(dataset)
     train_size = int(total * train_ratio)
     val_size = int(total * val_ratio)
