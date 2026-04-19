@@ -7,16 +7,12 @@ from typing import Any
 
 from omegaconf import DictConfig
 
-from biometric.storage.azure import AzureBlobStorageBackend
 from biometric.storage.base import StorageBackend
 from biometric.storage.local import LocalStorageBackend
 
 logger = logging.getLogger(__name__)
 
-_BACKEND_MAP: dict[str, type[StorageBackend]] = {
-    "local": LocalStorageBackend,
-    "azure": AzureBlobStorageBackend,
-}
+_BACKEND_MAP: set[str] = {"local", "azure"}
 
 
 def create_storage_backend(cfg: DictConfig | dict[str, Any]) -> StorageBackend:
@@ -38,7 +34,7 @@ def create_storage_backend(cfg: DictConfig | dict[str, Any]) -> StorageBackend:
     backend_type = cfg.get("backend", "local") if isinstance(cfg, dict) else cfg.backend
 
     if backend_type not in _BACKEND_MAP:
-        available = ", ".join(sorted(_BACKEND_MAP.keys()))
+        available = ", ".join(sorted(_BACKEND_MAP))
         raise ValueError(f"Unknown storage backend: {backend_type!r}. Available: [{available}]")
 
     backend: StorageBackend
@@ -46,6 +42,8 @@ def create_storage_backend(cfg: DictConfig | dict[str, Any]) -> StorageBackend:
         base_path = cfg.get("base_path", "./data") if isinstance(cfg, dict) else cfg.base_path
         backend = LocalStorageBackend(base_path=base_path)
     elif backend_type == "azure":
+        from biometric.storage.azure import AzureBlobStorageBackend
+
         conn_str = cfg.get("connection_string") if isinstance(cfg, dict) else cfg.connection_string
         container = cfg.get("container_name") if isinstance(cfg, dict) else cfg.container_name
         if not conn_str or not container:

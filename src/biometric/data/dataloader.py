@@ -67,7 +67,8 @@ def create_dataloaders(
         Dictionary with 'train', 'val', 'test' DataLoader instances.
     """
     # Compute split sizes
-    assert hasattr(dataset, "__len__"), "Dataset must implement __len__"
+    if not hasattr(dataset, "__len__"):
+        raise TypeError("Dataset must implement __len__ for splitting")
     total = len(dataset)
     train_size = int(total * train_ratio)
     val_size = int(total * val_ratio)

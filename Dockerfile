@@ -9,7 +9,7 @@
 #       python scripts/train.py training=quick
 
 # ---- Builder Stage ----
-FROM python:3.10-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
@@ -25,7 +25,7 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir --prefix=/install .
 
 # ---- Runtime Stage ----
-FROM python:3.10-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 LABEL maintainer="Anand Kummari" \
       description="Multimodal biometric recognition MLOps pipeline"

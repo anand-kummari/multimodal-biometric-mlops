@@ -136,25 +136,33 @@ def main(cfg: DictConfig) -> None:
             train_cfg.gradient_clip.max_norm if train_cfg.gradient_clip.enabled else None
         ),
         callbacks=callbacks,
+        max_epochs=train_cfg.epochs,
     )
 
     # Save training config for reproducibility
     trainer.save_training_config("training_config.json")
 
+    # Resume from checkpoint if specified (e.g. +resume_from=path/to/ckpt.pt)
+    resume_path = cfg.get("resume_from")
+    if resume_path:
+        trainer.resume_from_checkpoint(resume_path)
+
     # Train
-    metric_tracker = trainer.fit(
-        train_loader=dataloaders["train"],
-        val_loader=dataloaders["val"],
-        epochs=train_cfg.epochs,
-    )
+    try:
+        metric_tracker = trainer.fit(
+            train_loader=dataloaders["train"],
+            val_loader=dataloaders["val"],
+            epochs=train_cfg.epochs,
+        )
 
-    # Log final results
-    best = metric_tracker.get_best("val_loss", mode="min")
-    if best:
-        logger.info("Best epoch: %s", best)
+        # Log final results
+        best = metric_tracker.get_best("val_loss", mode="min")
+        if best:
+            logger.info("Best epoch: %s", best)
 
-    logger.info("Training complete. Outputs saved to: %s", Path.cwd())
-    end_run()
+        logger.info("Training complete. Outputs saved to: %s", Path.cwd())
+    finally:
+        end_run()
 
 
 if __name__ == "__main__":

@@ -8,11 +8,14 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 _mlflow: Any = None
+_MISSING = object()  # sentinel for "tried import and failed"
 
 
 def _ensure_mlflow() -> bool:
     """Attempt to import mlflow once and cache the result."""
     global _mlflow
+    if _mlflow is _MISSING:
+        return False
     if _mlflow is not None:
         return True
     try:
@@ -21,6 +24,7 @@ def _ensure_mlflow() -> bool:
         _mlflow = mlflow
         return True
     except ImportError:
+        _mlflow = _MISSING
         return False
 
 

@@ -33,19 +33,19 @@ class TestTensorSerialization:
     def test_roundtrip_float_tensor(self) -> None:
         original = torch.randn(3, 224, 224)
         data = _tensor_to_bytes(original)
-        restored = _bytes_to_tensor(data, str(list(original.shape)), str(original.dtype))
+        restored = _bytes_to_tensor(data)
         assert torch.allclose(original, restored)
 
     def test_roundtrip_long_tensor(self) -> None:
         original = torch.tensor(42, dtype=torch.long)
         data = _tensor_to_bytes(original)
-        restored = _bytes_to_tensor(data, str(list(original.shape)), str(original.dtype))
+        restored = _bytes_to_tensor(data)
         assert original.item() == restored.item()
 
     def test_roundtrip_batch_tensor(self) -> None:
         original = torch.randn(4, 3, 64, 64)
         data = _tensor_to_bytes(original)
-        restored = _bytes_to_tensor(data, str(list(original.shape)), str(original.dtype))
+        restored = _bytes_to_tensor(data)
         assert torch.allclose(original, restored)
 
 

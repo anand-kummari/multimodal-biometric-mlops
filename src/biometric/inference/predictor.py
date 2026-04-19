@@ -106,9 +106,13 @@ class Predictor:
                 - 'probabilities': Full probability distribution over classes.
         """
         # Load and transform each modality
-        iris_left = self._load_modality(iris_left_path, self.iris_transform, channels=3)
-        iris_right = self._load_modality(iris_right_path, self.iris_transform, channels=3)
-        fingerprint = self._load_modality(fingerprint_path, self.fingerprint_transform, channels=1)
+        iris_left = self._load_modality(iris_left_path, self.iris_transform, channels=3, mode="RGB")
+        iris_right = self._load_modality(
+            iris_right_path, self.iris_transform, channels=3, mode="RGB"
+        )
+        fingerprint = self._load_modality(
+            fingerprint_path, self.fingerprint_transform, channels=1, mode="L"
+        )
 
         # Add batch dimension and move to device
         modality_inputs = {
@@ -160,6 +164,7 @@ class Predictor:
         image_path: str | None,
         transform: transforms.Compose,
         channels: int,
+        mode: str = "RGB",
     ) -> torch.Tensor:
         """Load and transform a single modality image.
 
@@ -169,6 +174,6 @@ class Predictor:
             h, w = self._image_size
             return torch.zeros(channels, h, w)
 
-        image = Image.open(image_path).convert("RGB")
+        image = Image.open(image_path).convert(mode)
         result: torch.Tensor = transform(image)
         return result

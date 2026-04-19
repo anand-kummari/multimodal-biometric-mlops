@@ -252,7 +252,7 @@ class Trainer:
             correct += (preds == labels).sum().item()
             total += labels.size(0)
 
-            self.metric_tracker.update("train_loss", loss.item())
+            self.metric_tracker.update("train_loss", loss.item(), count=labels.size(0))
 
         avg_loss = total_loss / max(total, 1)
         accuracy = correct / max(total, 1)
@@ -292,7 +292,7 @@ class Trainer:
             correct += (preds == labels).sum().item()
             total += labels.size(0)
 
-            self.metric_tracker.update("val_loss", loss.item())
+            self.metric_tracker.update("val_loss", loss.item(), count=labels.size(0))
 
         avg_loss = total_loss / max(total, 1)
         accuracy = correct / max(total, 1)

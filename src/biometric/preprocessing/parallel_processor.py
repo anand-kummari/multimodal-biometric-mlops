@@ -54,8 +54,8 @@ def _process_single_image(
     """
     start = time.perf_counter()
     try:
-        raw_img = Image.open(source_path)
-        img = raw_img.resize(target_size, Image.Resampling.LANCZOS)
+        with Image.open(source_path) as raw_img:
+            img = raw_img.resize(target_size, Image.Resampling.LANCZOS)
 
         output_dir = Path(output_path).parent
         output_dir.mkdir(parents=True, exist_ok=True)

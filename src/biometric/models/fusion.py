@@ -40,6 +40,7 @@ class ConcatenationFusion(nn.Module):
         dropout: float = 0.4,
     ) -> None:
         super().__init__()
+        self.modality_names = list(input_dims.keys())
         total_dim = sum(input_dims.values())
         self.projection = nn.Sequential(
             nn.Linear(total_dim, hidden_dim),
@@ -57,7 +58,7 @@ class ConcatenationFusion(nn.Module):
         Returns:
             Fused feature tensor of shape (B, hidden_dim).
         """
-        concatenated = torch.cat(list(features.values()), dim=1)
+        concatenated = torch.cat([features[n] for n in self.modality_names], dim=1)
         out: torch.Tensor = self.projection(concatenated)
         return out
 
@@ -112,14 +113,14 @@ class AttentionFusion(nn.Module):
             Fused feature tensor of shape (B, hidden_dim).
         """
         # Project all modalities to same dimension
-        projected = {name: self.projections[name](feat) for name, feat in features.items()}
+        projected = {name: self.projections[name](features[name]) for name in self.modality_names}
 
         # Compute attention weights
-        concat_for_attn = torch.cat(list(projected.values()), dim=1)
+        concat_for_attn = torch.cat([projected[n] for n in self.modality_names], dim=1)
         attn_weights = self.attention(concat_for_attn)  # (B, num_modalities)
 
         # Weighted sum
-        stacked = torch.stack(list(projected.values()), dim=1)  # (B, M, hidden)
+        stacked = torch.stack([projected[n] for n in self.modality_names], dim=1)  # (B, M, hidden)
         attn_weights = attn_weights.unsqueeze(-1)  # (B, M, 1)
         fused = (stacked * attn_weights).sum(dim=1)  # (B, hidden)
 
@@ -201,10 +202,11 @@ class MultimodalFusionNet(BaseFusionModel):
 
         # Classification head
         hidden_dim = fuse_cfg.get("hidden_dim", 256)
+        classifier_dropout = fuse_cfg.get("classifier_dropout", 0.3)
         self.classifier = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=classifier_dropout),
             nn.Linear(hidden_dim // 2, num_classes),
         )
 

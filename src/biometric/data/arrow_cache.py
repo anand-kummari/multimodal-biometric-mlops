@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 import io
 import json
@@ -139,14 +140,9 @@ class ArrowCacheReader:
         if idx < 0 or idx >= self._total_length:
             raise IndexError(f"Index {idx} out of range [0, {self._total_length})")
 
-        # Find the correct shard
-        shard_idx = 0
-        local_idx = idx
-        for i, cum_len in enumerate(self._cumulative_lengths):
-            if idx < cum_len:
-                shard_idx = i
-                local_idx = idx - (self._cumulative_lengths[i - 1] if i > 0 else 0)
-                break
+        # Find the correct shard via binary search
+        shard_idx = bisect.bisect_right(self._cumulative_lengths, idx)
+        local_idx = idx - (self._cumulative_lengths[shard_idx - 1] if shard_idx > 0 else 0)
 
         row = self._tables[shard_idx].slice(local_idx, 1).to_pydict()
         return self._deserialize_row(row)
@@ -164,11 +160,9 @@ class ArrowCacheReader:
             if key.endswith("_data") and key not in processed_keys:
                 base_key = key[:-5]  # Remove '_data' suffix
                 data_bytes = row[key][0]
-                shape_str = row.get(f"{base_key}_shape", [None])[0]
-                dtype_str = row.get(f"{base_key}_dtype", [None])[0]
 
-                if data_bytes and shape_str and dtype_str:
-                    tensor = _bytes_to_tensor(data_bytes, shape_str, dtype_str)
+                if data_bytes:
+                    tensor = _bytes_to_tensor(data_bytes)
                     result[base_key] = tensor
                     processed_keys.update({key, f"{base_key}_shape", f"{base_key}_dtype"})
             elif key not in processed_keys:
@@ -213,7 +207,7 @@ def _tensor_to_bytes(tensor: torch.Tensor) -> bytes:
     return buffer.getvalue()
 
 
-def _bytes_to_tensor(data: bytes, shape_str: str, dtype_str: str) -> torch.Tensor:
+def _bytes_to_tensor(data: bytes) -> torch.Tensor:
     """Deserialize bytes back to a tensor."""
     buffer = io.BytesIO(data)
     np_array = np.load(buffer)
