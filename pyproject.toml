@@ -7,7 +7,7 @@ name = "multimodal-biometric-mlops"
 version = "0.1.0"
 description = "Scalable multimodal biometric recognition system"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
     {name = "Anand Kummari"},
