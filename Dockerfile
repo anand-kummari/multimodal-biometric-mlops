@@ -35,7 +35,7 @@ WORKDIR /app
 # Install tini for proper PID-1 signal handling and minimal runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -54,7 +54,7 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser \
 USER appuser
 
 # Set Python path
-ENV PYTHONPATH="/app/src:${PYTHONPATH}"
+ENV PYTHONPATH="/app/src"
 ENV PYTHONUNBUFFERED=1
 
 # Basic health check — verify the package can be imported
