@@ -6,11 +6,10 @@
 #   export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=..."
 #   python scripts/train.py storage=azure
 #
-storage:
-  backend: azure
-  connection_string: ${oc.env:AZURE_STORAGE_CONNECTION_STRING}
-  container_name: biometric-data
-  raw_dir: raw
-  processed_dir: processed
-  cache_dir: cache
-  checkpoint_dir: checkpoints
+backend: azure
+connection_string: ${oc.env:AZURE_STORAGE_CONNECTION_STRING}
+container_name: biometric-data
+raw_dir: raw
+processed_dir: processed
+cache_dir: cache
+checkpoint_dir: checkpoints

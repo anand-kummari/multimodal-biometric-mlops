@@ -99,7 +99,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Model
-    model_cfg = cfg.model.model
+    model_cfg = cfg.model
     iris_cfg = dict(OmegaConf.to_container(model_cfg.iris_encoder, resolve=True))  # type: ignore[arg-type]
     fp_cfg = dict(OmegaConf.to_container(model_cfg.fingerprint_encoder, resolve=True))  # type: ignore[arg-type]
     fusion_cfg_dict = dict(OmegaConf.to_container(model_cfg.fusion, resolve=True))  # type: ignore[arg-type]
@@ -111,7 +111,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Callbacks
-    train_cfg = cfg.training.training
+    train_cfg = cfg.training
     callbacks: list[TrainingCallback] = []
 
     if train_cfg.early_stopping.enabled:

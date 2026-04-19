@@ -1,23 +1,22 @@
-model:
-  name: multimodal_fusion_net
-  num_classes: 45  # One class per subject
+name: multimodal_fusion_net
+num_classes: 45  # One class per subject
 
-  # Iris encoder (shared for left and right)
-  iris_encoder:
-    type: simple_cnn
-    in_channels: 3
-    feature_dim: 128
-    dropout: 0.3
+# Iris encoder (shared for left and right)
+iris_encoder:
+  type: simple_cnn
+  in_channels: 3
+  feature_dim: 128
+  dropout: 0.3
 
-  # Fingerprint encoder
-  fingerprint_encoder:
-    type: simple_cnn
-    in_channels: 1  # Grayscale fingerprints
-    feature_dim: 128
-    dropout: 0.3
+# Fingerprint encoder
+fingerprint_encoder:
+  type: simple_cnn
+  in_channels: 1  # Grayscale fingerprints
+  feature_dim: 128
+  dropout: 0.3
 
-  # Fusion strategy
-  fusion:
-    strategy: concatenation  # concatenation | attention | gated
-    hidden_dim: 256
-    dropout: 0.4
+# Fusion strategy
+fusion:
+  strategy: concatenation  # concatenation | attention | gated
+  hidden_dim: 256
+  dropout: 0.4

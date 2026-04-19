@@ -1,33 +1,32 @@
-training:
-  epochs: 50
-  learning_rate: 0.001
-  weight_decay: 0.0001
-  optimizer: adam  # adam | adamw | sgd
+epochs: 50
+learning_rate: 0.001
+weight_decay: 0.0001
+optimizer: adam  # adam | adamw | sgd
 
-  # Learning rate scheduler
-  scheduler:
-    type: cosine  # cosine | step | plateau
-    warmup_epochs: 5
-    min_lr: 0.00001
+# Learning rate scheduler
+scheduler:
+  type: cosine  # cosine | step | plateau
+  warmup_epochs: 5
+  min_lr: 0.00001
 
-  # Mixed precision training
-  mixed_precision: true
+# Mixed precision training
+mixed_precision: true
 
-  # Gradient clipping
-  gradient_clip:
-    enabled: true
-    max_norm: 1.0
+# Gradient clipping
+gradient_clip:
+  enabled: true
+  max_norm: 1.0
 
-  # Callbacks
-  early_stopping:
-    enabled: true
-    patience: 10
-    metric: val_loss
-    mode: min
+# Callbacks
+early_stopping:
+  enabled: true
+  patience: 10
+  metric: val_loss
+  mode: min
 
-  checkpointing:
-    enabled: true
-    save_best: true
-    save_last: true
-    metric: val_loss
-    mode: min
+checkpointing:
+  enabled: true
+  save_best: true
+  save_last: true
+  metric: val_loss
+  mode: min

@@ -60,15 +60,18 @@ def export_to_onnx(
 
     positional = tuple(dummy_inputs[n] for n in input_names)
 
-    torch.onnx.export(
-        wrapper,
-        positional,
-        str(output_path),
-        input_names=input_names,
-        output_names=["logits"],
-        dynamic_axes=dynamic_axes,
-        opset_version=opset_version,
-    )
+    with torch.no_grad():
+        torch.onnx.export(
+            wrapper,
+            positional,
+            str(output_path),
+            input_names=input_names,
+            output_names=["logits"],
+            dynamic_axes=dynamic_axes,
+            opset_version=opset_version,
+            dynamo=False,
+            verbose=False,
+        )
     logger.info("ONNX model exported to %s (opset %d)", output_path, opset_version)
     return output_path.resolve()
 

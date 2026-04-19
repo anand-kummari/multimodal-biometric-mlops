@@ -264,7 +264,7 @@ class Trainer:
             labels = batch["label"].to(self.device, non_blocking=True)
 
             # Build modality masks if available in the batch
-            modality_masks = self._extract_masks(batch)
+            modality_masks = self._extract_masks(batch, device=self.device)
 
             # Forward pass with optional mixed precision
             self.optimizer.zero_grad(set_to_none=True)
@@ -320,7 +320,7 @@ class Trainer:
                 "fingerprint": batch["fingerprint"].to(self.device, non_blocking=True),
             }
             labels = batch["label"].to(self.device, non_blocking=True)
-            modality_masks = self._extract_masks(batch)
+            modality_masks = self._extract_masks(batch, device=self.device)
 
             with autocast("cuda", enabled=self.mixed_precision):
                 logits = self.model(modality_inputs, modality_masks=modality_masks)
@@ -339,7 +339,10 @@ class Trainer:
         return {"val_loss": avg_loss, "val_acc": accuracy}
 
     @staticmethod
-    def _extract_masks(batch: dict[str, Any]) -> dict[str, torch.Tensor] | None:
+    def _extract_masks(
+        batch: dict[str, Any],
+        device: torch.device | str = "cpu",
+    ) -> dict[str, torch.Tensor] | None:
         """Build a modality mask dict from ``has_*`` keys in the batch.
 
         Returns ``None`` when no mask keys are present (e.g. synthetic test batches).
@@ -352,7 +355,7 @@ class Trainer:
         masks: dict[str, torch.Tensor] = {}
         for modality, key in mask_map.items():
             if key in batch:
-                masks[modality] = batch[key]
+                masks[modality] = batch[key].to(device, non_blocking=True)
         return masks if masks else None
 
     def resume_from_checkpoint(self, path: str | Path) -> None:
