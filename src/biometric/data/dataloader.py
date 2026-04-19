@@ -1,19 +1,15 @@
-"""High-performance DataLoader creation with configurable optimizations.
-
-Centralizes DataLoader construction with production-ready defaults:
-- Pinned memory for faster host-to-device transfers
-- Persistent workers to avoid re-spawning overhead
-- Configurable prefetch factor for overlapping I/O and compute
-- Reproducible sampling via seeded generators
-"""
+"""High-performance DataLoader creation with configurable optimizations."""
 
 from __future__ import annotations
 
 import logging
+import random as _random
+from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import torch
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -34,58 +30,99 @@ def _seed_worker(worker_id: int) -> None:
     random.seed(worker_seed)
 
 
+def split_subjects(
+    data_dir: str | Path,
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.15,
+    seed: int = 42,
+) -> dict[str, list[str]]:
+    """Split subject directories into train/val/test at the **subject level**.
+
+    This prevents data leakage: no subject's images appear in more than
+    one split, so the model is evaluated on genuinely unseen identities.
+
+    Args:
+        data_dir: Root directory containing subject sub-directories.
+        train_ratio: Fraction of subjects for training.
+        val_ratio: Fraction of subjects for validation.
+        seed: Random seed for reproducible splits.
+
+    Returns:
+        Dict with keys ``'train'``, ``'val'``, ``'test'``, each mapping to
+        a sorted list of subject directory **names** (not full paths).
+    """
+    data_path = Path(data_dir)
+    if not data_path.exists():
+        return {"train": [], "val": [], "test": []}
+
+    subject_names = sorted(d.name for d in data_path.iterdir() if d.is_dir())
+    total = len(subject_names)
+
+    # Deterministic shuffle
+    rng = _random.Random(seed)
+    shuffled = list(subject_names)
+    rng.shuffle(shuffled)
+
+    train_end = int(total * train_ratio)
+    val_end = train_end + int(total * val_ratio)
+
+    splits = {
+        "train": sorted(shuffled[:train_end]),
+        "val": sorted(shuffled[train_end:val_end]),
+        "test": sorted(shuffled[val_end:]),
+    }
+
+    logger.info(
+        "Subject-level split: total=%d, train=%d, val=%d, test=%d",
+        total,
+        len(splits["train"]),
+        len(splits["val"]),
+        len(splits["test"]),
+    )
+    return splits
+
+
 def create_dataloaders(
-    dataset: Dataset[Any],
+    datasets: Mapping[str, Dataset[Any]],
     batch_size: int = 16,
     num_workers: int = 4,
     pin_memory: bool = True,
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
     drop_last: bool = False,
-    train_ratio: float = 0.7,
-    val_ratio: float = 0.15,
     seed: int = 42,
 ) -> dict[str, DataLoader[Any]]:
-    """Create train/val/test DataLoaders with reproducible splits.
+    """Create train/val/test DataLoaders from pre-split datasets.
 
-    Splits the dataset into train/val/test subsets and wraps each in a
-    DataLoader with optimized settings for throughput.
+    Each dataset must already contain the correct split of data with
+    appropriate transforms (train gets augmentation, val/test do not).
+    This function only wraps them in DataLoaders with optimised settings.
 
     Args:
-        dataset: The full dataset to split.
+        datasets: Dict with 'train', 'val', 'test' Dataset instances.
         batch_size: Batch size for all loaders.
         num_workers: Number of subprocesses for data loading.
         pin_memory: Use pinned memory for faster GPU transfers.
         persistent_workers: Keep workers alive between epochs.
         prefetch_factor: Number of batches to prefetch per worker.
         drop_last: Drop the last incomplete batch.
-        train_ratio: Fraction of data for training.
-        val_ratio: Fraction of data for validation.
-        seed: Random seed for the split.
+        seed: Random seed for the train sampler.
 
     Returns:
         Dictionary with 'train', 'val', 'test' DataLoader instances.
     """
-    # Compute split sizes
-    if not hasattr(dataset, "__len__"):
-        raise TypeError("Dataset must implement __len__ for splitting")
-    total = len(dataset)
-    train_size = int(total * train_ratio)
-    val_size = int(total * val_ratio)
-    test_size = total - train_size - val_size
+    for name in ("train", "val", "test"):
+        ds = datasets[name]
+        if not hasattr(ds, "__len__"):
+            raise TypeError(f"Dataset '{name}' must implement __len__")
+
+    train_ds, val_ds, test_ds = datasets["train"], datasets["val"], datasets["test"]
 
     logger.info(
-        "Splitting dataset: total=%d, train=%d, val=%d, test=%d",
-        total,
-        train_size,
-        val_size,
-        test_size,
-    )
-
-    # Reproducible split
-    generator = torch.Generator().manual_seed(seed)
-    train_set, val_set, test_set = random_split(
-        dataset, [train_size, val_size, test_size], generator=generator
+        "Creating DataLoaders: train=%d, val=%d, test=%d samples",
+        len(train_ds),  # type: ignore[arg-type]
+        len(val_ds),  # type: ignore[arg-type]
+        len(test_ds),  # type: ignore[arg-type]
     )
 
     # Common DataLoader kwargs
@@ -103,7 +140,7 @@ def create_dataloaders(
 
     # Separate generator per loader for reproducibility
     train_loader = DataLoader(
-        train_set,
+        train_ds,
         shuffle=True,
         drop_last=drop_last,
         generator=torch.Generator().manual_seed(seed),
@@ -111,14 +148,14 @@ def create_dataloaders(
     )
 
     val_loader = DataLoader(
-        val_set,
+        val_ds,
         shuffle=False,
         drop_last=False,
         **common_kwargs,
     )
 
     test_loader = DataLoader(
-        test_set,
+        test_ds,
         shuffle=False,
         drop_last=False,
         **common_kwargs,

@@ -217,7 +217,11 @@ class MultimodalFusionNet(BaseFusionModel):
             self.count_parameters(),
         )
 
-    def forward(self, modality_features: dict[str, torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self,
+        modality_features: dict[str, torch.Tensor],
+        modality_masks: dict[str, torch.Tensor] | None = None,
+    ) -> torch.Tensor:
         """Forward pass through encoders, fusion, and classifier.
 
         Args:
@@ -225,6 +229,11 @@ class MultimodalFusionNet(BaseFusionModel):
                 - 'iris_left': (B, C, H, W) iris images
                 - 'iris_right': (B, C, H, W) iris images
                 - 'fingerprint': (B, C, H, W) fingerprint images
+            modality_masks: Optional dict mapping modality names to boolean
+                tensors of shape ``(B,)`` indicating which samples in the
+                batch actually have this modality.  When a sample's mask is
+                ``False`` the corresponding encoder output is zeroed out so
+                the model cannot learn to detect zero-input artifacts.
 
         Returns:
             Class logits of shape (B, num_classes).
@@ -235,6 +244,13 @@ class MultimodalFusionNet(BaseFusionModel):
             "iris_right": self.iris_encoder(modality_features["iris_right"]),
             "fingerprint": self.fingerprint_encoder(modality_features["fingerprint"]),
         }
+
+        # Mask out absent modalities so the model cannot learn zero-input artifacts
+        if modality_masks is not None:
+            for name, mask in modality_masks.items():
+                if name in encoded:
+                    # mask shape: (B,) -> (B, 1) for broadcasting with (B, D)
+                    encoded[name] = encoded[name] * mask.unsqueeze(-1).float()
 
         # Fuse and classify
         fused = self.fusion(encoded)

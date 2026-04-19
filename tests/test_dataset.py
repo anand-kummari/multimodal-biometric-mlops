@@ -96,4 +96,4 @@ class TestMultimodalBiometricDataset:
         )
         sample = dataset[0]
         # iris_left should be loaded, others should be zero tensors
-        assert sample["has_iris_left"] is True
+        assert sample["has_iris_left"].item() is True

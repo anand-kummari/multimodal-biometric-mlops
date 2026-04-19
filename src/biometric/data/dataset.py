@@ -71,12 +71,14 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         iris_size: tuple[int, int] = (224, 224),
         fingerprint_size: tuple[int, int] = (224, 224),
         modalities: list[str] | None = None,
+        subject_names: list[str] | None = None,
     ) -> None:
         self.data_dir = Path(data_dir)
         self.split = split
         self.modalities = modalities or ["iris_left", "iris_right", "fingerprint"]
         self._iris_size = iris_size
         self._fingerprint_size = fingerprint_size
+        self._subject_names = subject_names
 
         # Build modality-specific transforms
         is_train = split == "train"
@@ -114,10 +116,17 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
             logger.warning("Data directory does not exist: %s", self.data_dir)
             return samples
 
-        subject_dirs = sorted(
+        all_dirs = sorted(
             [d for d in self.data_dir.iterdir() if d.is_dir()],
             key=lambda d: d.name,
         )
+
+        # If subject_names were provided, only include those subjects.
+        if self._subject_names is not None:
+            allowed = set(self._subject_names)
+            subject_dirs = [d for d in all_dirs if d.name in allowed]
+        else:
+            subject_dirs = all_dirs
 
         for subject_idx, subject_dir in enumerate(subject_dirs):
             iris_left_dir = subject_dir / "iris_left"
@@ -192,20 +201,20 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
             result["iris_left"] = self._load_and_transform(
                 sample.iris_left_path, self.iris_transform
             )
-            result["has_iris_left"] = True
+            result["has_iris_left"] = torch.tensor(True)
         else:
             result["iris_left"] = torch.zeros(3, ih, iw)
-            result["has_iris_left"] = False
+            result["has_iris_left"] = torch.tensor(False)
 
         # Load iris right
         if "iris_right" in self.modalities and sample.iris_right_path:
             result["iris_right"] = self._load_and_transform(
                 sample.iris_right_path, self.iris_transform
             )
-            result["has_iris_right"] = True
+            result["has_iris_right"] = torch.tensor(True)
         else:
             result["iris_right"] = torch.zeros(3, ih, iw)
-            result["has_iris_right"] = False
+            result["has_iris_right"] = torch.tensor(False)
 
         # Load fingerprint
         if "fingerprint" in self.modalities and sample.fingerprint_path:
@@ -214,10 +223,10 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
                 self.fingerprint_transform,
                 mode="L",
             )
-            result["has_fingerprint"] = True
+            result["has_fingerprint"] = torch.tensor(True)
         else:
             result["fingerprint"] = torch.zeros(1, fh, fw)
-            result["has_fingerprint"] = False
+            result["has_fingerprint"] = torch.tensor(False)
 
         return result
 
@@ -238,6 +247,7 @@ class MultimodalBiometricDataset(Dataset[dict[str, Any]]):
         Returns:
             Transformed image tensor.
         """
-        image = Image.open(image_path).convert(mode)
+        with Image.open(image_path) as img:
+            image = img.convert(mode)
         result: torch.Tensor = transform(image)
         return result

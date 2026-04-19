@@ -12,7 +12,13 @@ import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
 from torch.optim import SGD, Adam, AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau, StepLR
+from torch.optim.lr_scheduler import (
+    CosineAnnealingLR,
+    LinearLR,
+    ReduceLROnPlateau,
+    SequentialLR,
+    StepLR,
+)
 from torch.utils.data import DataLoader
 
 from biometric.training.callbacks import ModelCheckpoint, TrainingCallback
@@ -122,16 +128,45 @@ class Trainer:
         min_lr: float,
         max_epochs: int = 50,
     ) -> Any:
-        """Create a learning rate scheduler."""
+        """Create a learning rate scheduler with optional linear warmup.
+
+        When *warmup_epochs* > 0 and a non-plateau scheduler is requested,
+        the first *warmup_epochs* epochs use a ``LinearLR`` warmup that
+        ramps from ``min_lr`` to the optimizer's initial LR.  The remaining
+        epochs follow the requested decay schedule via ``SequentialLR``.
+        """
+
+        def _with_warmup(main_scheduler: Any) -> Any:
+            if warmup_epochs <= 0:
+                return main_scheduler
+            warmup = LinearLR(
+                self.optimizer,
+                start_factor=min_lr / self.optimizer.defaults["lr"],
+                end_factor=1.0,
+                total_iters=warmup_epochs,
+            )
+            return SequentialLR(
+                self.optimizer,
+                schedulers=[warmup, main_scheduler],
+                milestones=[warmup_epochs],
+            )
+
         if scheduler_type == "cosine":
-            return CosineAnnealingLR(self.optimizer, T_max=max_epochs, eta_min=min_lr)
+            cosine = CosineAnnealingLR(
+                self.optimizer, T_max=max_epochs - warmup_epochs, eta_min=min_lr
+            )
+            return _with_warmup(cosine)
         elif scheduler_type == "step":
-            return StepLR(self.optimizer, step_size=10, gamma=0.1)
+            step = StepLR(self.optimizer, step_size=max(max_epochs // 3, 1), gamma=0.1)
+            return _with_warmup(step)
         elif scheduler_type == "plateau":
             return ReduceLROnPlateau(self.optimizer, mode="min", patience=5, factor=0.5)
         else:
             logger.warning("Unknown scheduler '%s', using cosine", scheduler_type)
-            return CosineAnnealingLR(self.optimizer, T_max=max_epochs, eta_min=min_lr)
+            cosine = CosineAnnealingLR(
+                self.optimizer, T_max=max_epochs - warmup_epochs, eta_min=min_lr
+            )
+            return _with_warmup(cosine)
 
     def fit(
         self,
@@ -228,11 +263,14 @@ class Trainer:
             }
             labels = batch["label"].to(self.device, non_blocking=True)
 
+            # Build modality masks if available in the batch
+            modality_masks = self._extract_masks(batch)
+
             # Forward pass with optional mixed precision
             self.optimizer.zero_grad(set_to_none=True)
 
             with autocast("cuda", enabled=self.mixed_precision):
-                logits = self.model(modality_inputs)
+                logits = self.model(modality_inputs, modality_masks=modality_masks)
                 loss = self.criterion(logits, labels)
 
             # Backward pass with gradient scaling
@@ -282,9 +320,10 @@ class Trainer:
                 "fingerprint": batch["fingerprint"].to(self.device, non_blocking=True),
             }
             labels = batch["label"].to(self.device, non_blocking=True)
+            modality_masks = self._extract_masks(batch)
 
             with autocast("cuda", enabled=self.mixed_precision):
-                logits = self.model(modality_inputs)
+                logits = self.model(modality_inputs, modality_masks=modality_masks)
                 loss = self.criterion(logits, labels)
 
             total_loss += loss.item() * labels.size(0)
@@ -298,6 +337,23 @@ class Trainer:
         accuracy = correct / max(total, 1)
 
         return {"val_loss": avg_loss, "val_acc": accuracy}
+
+    @staticmethod
+    def _extract_masks(batch: dict[str, Any]) -> dict[str, torch.Tensor] | None:
+        """Build a modality mask dict from ``has_*`` keys in the batch.
+
+        Returns ``None`` when no mask keys are present (e.g. synthetic test batches).
+        """
+        mask_map = {
+            "iris_left": "has_iris_left",
+            "iris_right": "has_iris_right",
+            "fingerprint": "has_fingerprint",
+        }
+        masks: dict[str, torch.Tensor] = {}
+        for modality, key in mask_map.items():
+            if key in batch:
+                masks[modality] = batch[key]
+        return masks if masks else None
 
     def resume_from_checkpoint(self, path: str | Path) -> None:
         """Restore training state from a previously saved checkpoint.

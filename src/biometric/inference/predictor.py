@@ -76,10 +76,18 @@ class Predictor:
         if not self.checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {self.checkpoint_path}")
 
-        checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=True)
+        checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.to(self.device)
         self.model.eval()
+
+        # Validate that checkpoint dimensions match the configured model
+        classifier_out = self.model.classifier[-1].out_features
+        if classifier_out != self.model.num_classes:
+            raise RuntimeError(
+                f"Checkpoint classifier output ({classifier_out}) does not match "
+                f"configured num_classes ({self.model.num_classes})"
+            )
 
         epoch = checkpoint.get("epoch", "unknown")
         metrics = checkpoint.get("metrics", {})

@@ -41,9 +41,9 @@ def sample_batch() -> dict[str, torch.Tensor | bool]:
         "iris_right": torch.randn(batch_size, 3, 224, 224),
         "fingerprint": torch.randn(batch_size, 1, 224, 224),
         "label": torch.randint(0, 45, (batch_size,)),
-        "has_iris_left": True,
-        "has_iris_right": True,
-        "has_fingerprint": True,
+        "has_iris_left": torch.tensor([True] * batch_size),
+        "has_iris_right": torch.tensor([True] * batch_size),
+        "has_fingerprint": torch.tensor([True] * batch_size),
     }
 
 

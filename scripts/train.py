@@ -40,7 +40,7 @@ def main(cfg: DictConfig) -> None:
     Args:
         cfg: Hydra-composed configuration from YAML files.
     """
-    from biometric.data.dataloader import create_dataloaders
+    from biometric.data.dataloader import create_dataloaders, split_subjects
     from biometric.data.dataset import MultimodalBiometricDataset
     from biometric.models.fusion import MultimodalFusionNet
     from biometric.training.callbacks import EarlyStopping, ModelCheckpoint, TrainingCallback
@@ -62,26 +62,39 @@ def main(cfg: DictConfig) -> None:
         run_name=f"{cfg.project.name}_{Path.cwd().name}",
     )
 
-    # Data
+    # Data — subject-level split to prevent data leakage
     data_cfg = cfg.data
-    dataset = MultimodalBiometricDataset(
+    common_ds_kwargs = dict(
         data_dir=cfg.storage.processed_dir,
-        split="train",
         iris_size=tuple(data_cfg.dataset.iris_size),
         fingerprint_size=tuple(data_cfg.dataset.fingerprint_size),
         modalities=list(data_cfg.dataset.modalities),
     )
 
+    subject_splits = split_subjects(
+        data_dir=cfg.storage.processed_dir,
+        train_ratio=data_cfg.dataloader.split.train,
+        val_ratio=data_cfg.dataloader.split.val,
+        seed=cfg.project.seed,
+    )
+
+    datasets = {
+        split_name: MultimodalBiometricDataset(
+            split=split_name,
+            subject_names=subject_splits[split_name],
+            **common_ds_kwargs,
+        )
+        for split_name in ("train", "val", "test")
+    }
+
     dataloaders = create_dataloaders(
-        dataset=dataset,
+        datasets=datasets,
         batch_size=data_cfg.dataloader.batch_size,
         num_workers=data_cfg.dataloader.num_workers,
         pin_memory=data_cfg.dataloader.pin_memory,
         persistent_workers=data_cfg.dataloader.persistent_workers,
         prefetch_factor=data_cfg.dataloader.prefetch_factor,
         drop_last=data_cfg.dataloader.drop_last,
-        train_ratio=data_cfg.dataloader.split.train,
-        val_ratio=data_cfg.dataloader.split.val,
         seed=cfg.project.seed,
     )
 
