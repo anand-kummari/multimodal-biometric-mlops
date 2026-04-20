@@ -45,6 +45,7 @@ def main(cfg: DictConfig) -> None:
     from biometric.models.fusion import MultimodalFusionNet
     from biometric.training.callbacks import EarlyStopping, ModelCheckpoint, TrainingCallback
     from biometric.training.experiment import end_run, init_experiment
+    from biometric.training.run_tracker import RunTracker
     from biometric.training.trainer import Trainer
     from biometric.utils.logging import setup_logging
     from biometric.utils.reproducibility import get_device, set_seed
@@ -152,6 +153,23 @@ def main(cfg: DictConfig) -> None:
         max_epochs=train_cfg.epochs,
     )
 
+    # SQLite run tracker — always available, no extra deps
+    tracker = RunTracker(db_path=project_root / "experiment_runs.db")
+    run_id = tracker.start_run(
+        experiment=cfg.project.name,
+        params={
+            "optimizer": train_cfg.optimizer,
+            "learning_rate": float(train_cfg.learning_rate),
+            "weight_decay": float(train_cfg.weight_decay),
+            "scheduler": train_cfg.scheduler.type,
+            "batch_size": int(data_cfg.dataloader.batch_size),
+            "epochs": int(train_cfg.epochs),
+            "mixed_precision": bool(train_cfg.mixed_precision),
+            "device": str(device),
+            "seed": int(cfg.project.seed),
+        },
+    )
+
     # Save training config for reproducibility
     trainer.save_training_config("training_config.json")
 
@@ -168,13 +186,31 @@ def main(cfg: DictConfig) -> None:
             epochs=train_cfg.epochs,
         )
 
+        # Log per-epoch metrics to SQLite
+        for epoch_data in metric_tracker.history:
+            tracker.log_epoch(
+                run_id,
+                epoch=epoch_data.epoch,
+                metrics=epoch_data.metrics,
+            )
+
         # Log final results
         best = metric_tracker.get_best("val_loss", mode="min")
+        final_metrics = {}
         if best:
             logger.info("Best epoch: %s", best)
+            final_metrics = {
+                "best_val_loss": best.metrics.get("val_loss", 0),
+                "best_epoch": best.epoch,
+            }
 
+        tracker.finish_run(run_id, final_metrics=final_metrics)
         logger.info("Training complete. Outputs saved to: %s", Path.cwd())
+    except Exception:
+        tracker.finish_run(run_id, status="failed")
+        raise
     finally:
+        tracker.close()
         end_run()
 
 
