@@ -39,7 +39,10 @@ multirun/
 # MLflow
 mlflow.db
 mlruns/
-*.json
+
+# Generated artifacts
+coverage.json
+training_config.json
 
 # Data (do not commit raw data)
 data/raw/

@@ -23,13 +23,17 @@ Built on PyTorch with a config-driven architecture so that every knob (batch siz
 │   ├── preprocessing/        # Ray-based parallel image processing
 │   ├── storage/              # Abstract backend + local + Azure Blob implementations
 │   └── utils/                # Logging, reproducibility, profiling
-├── tests/                    # 138 unit tests (pytest)
+├── tests/                    # 184+ unit & integration tests (pytest, 91% coverage)
 ├── benchmarks/               # DataLoader throughput benchmarks
 ├── scripts/                  # CLI entry points (download, preprocess, train)
 ├── Dockerfile                # Multi-stage, non-root, tini-based production image
 ├── Makefile                  # Common dev commands
 ├── .github/workflows/ci.yml  # Lint, typecheck, test, security scan, Docker build
-└── docs/                     # Architecture docs and ADRs
+└── docs/                     # Architecture, scalability analysis, ADRs, deployment
+    ├── architecture.md        # System design with diagrams and data flow
+    ├── scalability_analysis.md # Bottleneck analysis and scaling projections
+    ├── decisions.md           # Architecture Decision Records (ADRs)
+    └── deployment.md          # ONNX serving with Triton and Kubernetes
 ```
 
 ## Getting started
@@ -107,7 +111,15 @@ export_to_onnx(model, "model.onnx")
 python benchmarks/benchmark_dataloader.py --data-dir data/processed
 ```
 
-Compares throughput across different `num_workers`, `pin_memory`, and caching configurations.
+Compares throughput across different `num_workers`, `pin_memory`, and caching configurations. Results are saved to `benchmarks/results/`.
+
+### 8. Hyperparameter sweep
+
+```bash
+python scripts/train.py -m training.learning_rate=0.001,0.01,0.1 training.optimizer=adam,sgd
+```
+
+Hydra multirun launches one training run per combination and writes results to `multirun/<date>/<time>/`.
 
 ## Data validation
 
@@ -158,7 +170,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push:
 
 1. **Lint & format** (ruff) across the entire codebase
 2. **Type check** (mypy) with strict config
-3. **Unit tests** (pytest) with 70% minimum coverage gate
+3. **Unit tests** (pytest) with 85% minimum coverage gate (currently 91%)
 4. **Security scan** (pip-audit) for known vulnerabilities
 5. **Docker build** verification
 6. **Smoke test** with a synthetic forward pass
@@ -172,6 +184,28 @@ docker run --gpus all -v ./data:/app/data multimodal-biometric-mlops \
 ```
 
 The image uses a multi-stage build (builder + slim runtime), runs as a non-root user, and includes a health check.
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | System design, component diagrams, data flow |
+| [`docs/scalability_analysis.md`](docs/scalability_analysis.md) | Bottleneck analysis, performance benchmarks, scaling projections |
+| [`docs/decisions.md`](docs/decisions.md) | Architecture Decision Records — *why* each technology was chosen |
+| [`docs/deployment.md`](docs/deployment.md) | ONNX serving via Triton, Kubernetes manifests, monitoring |
+
+## Benchmark Results
+
+DataLoader throughput measured with `benchmarks/benchmark_dataloader.py`:
+
+| Configuration | Throughput (samples/s) | Avg batch time |
+|---|---|---|
+| `num_workers=0`, no pin | 211 | 75.5 ms |
+| `num_workers=2`, pin + persistent | 425 | 38.1 ms |
+| `num_workers=4`, pin + persistent | 756 | 21.8 ms |
+| `num_workers=8`, pin + persistent | 1 328 | 13.8 ms |
+
+See [`docs/scalability_analysis.md`](docs/scalability_analysis.md) for full analysis.
 
 ## Development
 
