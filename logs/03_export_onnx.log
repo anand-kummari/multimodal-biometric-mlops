@@ -1,0 +1,3 @@
+Loaded best checkpoint (epoch 1, metrics={'train_loss': 3.5938690091470686, 'train_acc': 0.0735009671179884, 'val_loss': 3.806975543158395, 'val_acc': 0.02857142857142857})
+ONNX export successful: checkpoints/model.onnx
+ONNX file size: 3.8 MB

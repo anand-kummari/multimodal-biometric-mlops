@@ -1,0 +1,154 @@
+2026-04-20 16:36:31 | INFO     | __main__ | Configuration:
+data:
+  dataset:
+    name: multimodal_biometric
+    num_subjects: 45
+    iris_images_per_eye: 5
+    fingerprints_per_subject: 10
+    iris_size:
+    - 224
+    - 224
+    fingerprint_size:
+    - 224
+    - 224
+    modalities:
+    - iris_left
+    - iris_right
+    - fingerprint
+  dataloader:
+    batch_size: 16
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    drop_last: false
+    split:
+      train: 0.7
+      val: 0.15
+      test: 0.15
+  cache:
+    enabled: true
+    backend: pyarrow
+    compression: snappy
+  preprocessing:
+    parallel:
+      enabled: true
+      backend: ray
+      num_cpus: null
+model:
+  name: multimodal_fusion_net
+  num_classes: 45
+  iris_encoder:
+    type: simple_cnn
+    in_channels: 3
+    feature_dim: 128
+    dropout: 0.3
+  fingerprint_encoder:
+    type: simple_cnn
+    in_channels: 1
+    feature_dim: 128
+    dropout: 0.3
+  fusion:
+    strategy: concatenation
+    hidden_dim: 256
+    dropout: 0.4
+training:
+  epochs: 15
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: adam
+  scheduler:
+    type: cosine
+    warmup_epochs: 5
+    min_lr: 1.0e-05
+  mixed_precision: false
+  gradient_clip:
+    enabled: true
+    max_norm: 1.0
+  early_stopping:
+    enabled: true
+    patience: 10
+    metric: val_loss
+    mode: min
+  checkpointing:
+    enabled: true
+    save_best: true
+    save_last: true
+    metric: val_loss
+    mode: min
+storage:
+  backend: local
+  base_path: ${hydra:runtime.cwd}/data
+  raw_dir: ${storage.base_path}/raw
+  processed_dir: ${storage.base_path}/processed
+  cache_dir: ${storage.base_path}/cache
+  checkpoint_dir: ${hydra:runtime.cwd}/checkpoints
+project:
+  name: multimodal-biometric-mlops
+  seed: 42
+  device: auto
+logging:
+  level: INFO
+  format: '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
+  file: null
+
+2026-04-20 16:36:31 | INFO     | biometric.utils.reproducibility | Random seed set to 42 (deterministic mode enabled)
+2026-04-20 16:36:31 | INFO     | biometric.utils.reproducibility | Using device: mps
+2026-04-20 16:36:33 | INFO     | biometric.training.experiment | MLflow run started: experiment=multimodal-biometric-mlops
+2026-04-20 16:36:33 | INFO     | biometric.data.dataloader | Subject-level split: total=47, train=32, val=7, test=8
+2026-04-20 16:36:33 | INFO     | biometric.data.dataset | MultimodalBiometricDataset: split=train, samples=1551, modalities=['iris_left', 'iris_right', 'fingerprint']
+2026-04-20 16:36:33 | INFO     | biometric.data.dataset | MultimodalBiometricDataset: split=val, samples=350, modalities=['iris_left', 'iris_right', 'fingerprint']
+2026-04-20 16:36:33 | INFO     | biometric.data.dataset | MultimodalBiometricDataset: split=test, samples=351, modalities=['iris_left', 'iris_right', 'fingerprint']
+2026-04-20 16:36:33 | INFO     | biometric.data.dataloader | Creating DataLoaders: train=1551, val=350, test=351 samples
+2026-04-20 16:36:33 | INFO     | biometric.data.dataloader | DataLoaders created: batch_size=16, num_workers=4, pin_memory=True
+2026-04-20 16:36:33 | INFO     | biometric.models.fusion | MultimodalFusionNet initialized: 45 classes, strategy=concatenation, params=981741
+2026-04-20 16:36:33 | INFO     | biometric.training.trainer | Trainer initialized: optimizer=adam, lr=0.001000, mixed_precision=False, device=mps
+2026-04-20 16:36:33 | INFO     | biometric.training.run_tracker | RunTracker initialised: /Users/anand.kummari/personal/bosch/multimodal-biometric-mlops/experiment_runs.db
+2026-04-20 16:36:33 | INFO     | biometric.training.run_tracker | Run started: 3bb11f937482 (experiment=multimodal-biometric-mlops)
+2026-04-20 16:36:33 | INFO     | biometric.training.trainer | Training config saved to training_config.json
+2026-04-20 16:36:33 | INFO     | biometric.training.trainer | Starting training for 15 epochs
+/Users/anand.kummari/personal/bosch/multimodal-biometric-mlops/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:1118: UserWarning: 'pin_memory' argument is set as true but not supported on MPS now, device pinned memory won't be used.
+  super().__init__(loader)
+2026-04-20 16:36:50 | INFO     | biometric.training.metrics | Epoch 0 metrics: EpochMetrics(epoch=0, train_loss=3.8314, val_loss=3.8172)
+2026-04-20 16:36:50 | INFO     | biometric.training.callbacks | New best model saved (epoch 0, val_loss=3.8172)
+2026-04-20 16:36:50 | INFO     | biometric.training.trainer | Epoch 1/15 completed in 17.3s | lr=0.000208 | train_loss=3.8314 | train_acc=0.0297 | val_loss=3.8172 | val_acc=0.0000
+2026-04-20 16:37:03 | INFO     | biometric.training.metrics | Epoch 1 metrics: EpochMetrics(epoch=1, train_loss=3.5939, val_loss=3.8070)
+2026-04-20 16:37:03 | INFO     | biometric.training.callbacks | New best model saved (epoch 1, val_loss=3.8070)
+2026-04-20 16:37:03 | INFO     | biometric.training.trainer | Epoch 2/15 completed in 12.7s | lr=0.000406 | train_loss=3.5939 | train_acc=0.0735 | val_loss=3.8070 | val_acc=0.0286
+2026-04-20 16:37:16 | INFO     | biometric.training.metrics | Epoch 2 metrics: EpochMetrics(epoch=2, train_loss=2.8893, val_loss=4.3712)
+2026-04-20 16:37:16 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 1/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:37:16 | INFO     | biometric.training.trainer | Epoch 3/15 completed in 12.6s | lr=0.000604 | train_loss=2.8893 | train_acc=0.1876 | val_loss=4.3712 | val_acc=0.0657
+2026-04-20 16:37:28 | INFO     | biometric.training.metrics | Epoch 3 metrics: EpochMetrics(epoch=3, train_loss=2.1888, val_loss=5.2379)
+2026-04-20 16:37:28 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 2/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:37:28 | INFO     | biometric.training.trainer | Epoch 4/15 completed in 12.5s | lr=0.000802 | train_loss=2.1888 | train_acc=0.3456 | val_loss=5.2379 | val_acc=0.0571
+2026-04-20 16:37:40 | INFO     | biometric.training.metrics | Epoch 4 metrics: EpochMetrics(epoch=4, train_loss=1.7056, val_loss=6.0410)
+2026-04-20 16:37:40 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 3/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:37:40 | INFO     | biometric.training.trainer | Epoch 5/15 completed in 11.9s | lr=0.001000 | train_loss=1.7056 | train_acc=0.4610 | val_loss=6.0410 | val_acc=0.0000
+2026-04-20 16:37:52 | INFO     | biometric.training.metrics | Epoch 5 metrics: EpochMetrics(epoch=5, train_loss=1.4111, val_loss=6.0595)
+2026-04-20 16:37:52 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 4/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:37:52 | INFO     | biometric.training.trainer | Epoch 6/15 completed in 12.3s | lr=0.000976 | train_loss=1.4111 | train_acc=0.5609 | val_loss=6.0595 | val_acc=0.0343
+2026-04-20 16:38:05 | INFO     | biometric.training.metrics | Epoch 6 metrics: EpochMetrics(epoch=6, train_loss=1.1972, val_loss=7.2973)
+2026-04-20 16:38:05 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 5/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:38:05 | INFO     | biometric.training.trainer | Epoch 7/15 completed in 12.2s | lr=0.000905 | train_loss=1.1972 | train_acc=0.6202 | val_loss=7.2973 | val_acc=0.0000
+2026-04-20 16:38:17 | INFO     | biometric.training.metrics | Epoch 7 metrics: EpochMetrics(epoch=7, train_loss=0.9910, val_loss=6.8204)
+2026-04-20 16:38:17 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 6/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:38:17 | INFO     | biometric.training.trainer | Epoch 8/15 completed in 12.2s | lr=0.000796 | train_loss=0.9910 | train_acc=0.6905 | val_loss=6.8204 | val_acc=0.0629
+2026-04-20 16:38:29 | INFO     | biometric.training.metrics | Epoch 8 metrics: EpochMetrics(epoch=8, train_loss=0.8264, val_loss=7.4182)
+2026-04-20 16:38:29 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 7/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:38:29 | INFO     | biometric.training.trainer | Epoch 9/15 completed in 11.9s | lr=0.000658 | train_loss=0.8264 | train_acc=0.7344 | val_loss=7.4182 | val_acc=0.0143
+2026-04-20 16:38:41 | INFO     | biometric.training.metrics | Epoch 9 metrics: EpochMetrics(epoch=9, train_loss=0.6479, val_loss=6.9960)
+2026-04-20 16:38:41 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 8/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:38:41 | INFO     | biometric.training.trainer | Epoch 10/15 completed in 12.0s | lr=0.000505 | train_loss=0.6479 | train_acc=0.8001 | val_loss=6.9960 | val_acc=0.0429
+2026-04-20 16:38:53 | INFO     | biometric.training.metrics | Epoch 10 metrics: EpochMetrics(epoch=10, train_loss=0.5275, val_loss=6.8741)
+2026-04-20 16:38:53 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 9/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:38:53 | INFO     | biometric.training.trainer | Epoch 11/15 completed in 11.9s | lr=0.000352 | train_loss=0.5275 | train_acc=0.8414 | val_loss=6.8741 | val_acc=0.0714
+2026-04-20 16:39:05 | INFO     | biometric.training.metrics | Epoch 11 metrics: EpochMetrics(epoch=11, train_loss=0.4495, val_loss=8.1594)
+2026-04-20 16:39:05 | INFO     | biometric.training.callbacks | EarlyStopping: no improvement for 10/10 epochs (best=val_loss: 3.8070)
+2026-04-20 16:39:05 | INFO     | biometric.training.callbacks | EarlyStopping triggered at epoch 11 (best val_loss: 3.8070)
+2026-04-20 16:39:05 | INFO     | biometric.training.trainer | Epoch 12/15 completed in 12.0s | lr=0.000214 | train_loss=0.4495 | train_acc=0.8685 | val_loss=8.1594 | val_acc=0.0171
+2026-04-20 16:39:05 | INFO     | biometric.training.trainer | Early stopping triggered at epoch 12
+2026-04-20 16:39:05 | INFO     | biometric.training.trainer | Training complete in 151.6s
+2026-04-20 16:39:05 | INFO     | __main__ | Best epoch: EpochMetrics(epoch=1, train_loss=3.5939, val_loss=3.8070)
+2026-04-20 16:39:05 | INFO     | biometric.training.run_tracker | Run finished: 3bb11f937482 (status=completed)
+2026-04-20 16:39:05 | INFO     | __main__ | Training complete. Outputs saved to: /Users/anand.kummari/personal/bosch/multimodal-biometric-mlops
+2026-04-20 16:39:05 | INFO     | biometric.training.experiment | MLflow run ended

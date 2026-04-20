@@ -1,0 +1,30 @@
+2026-04-20 16:35:57,913 | INFO     | Starting preprocessing: data/raw -> data/processed
+2026-04-20 16:35:57,961 | INFO     | Found 900 images to preprocess in data/raw
+2026-04-20 16:36:01,232 | INFO     | Preprocessing complete: 900 success, 0 failures, 3251.1ms total
+2026-04-20 16:36:01,232 | INFO     | Preprocessing complete: 900 images in 3.32s (900 success, 0 failed)
+2026-04-20 16:36:02,874 | INFO     | Building Arrow cache: data/processed -> data/cache
+2026-04-20 16:36:02,887 | INFO     | MultimodalBiometricDataset: split=train, samples=2252, modalities=['iris_left', 'iris_right', 'fingerprint']
+2026-04-20 16:36:04,052 | INFO     | Cached 100/2252 samples
+2026-04-20 16:36:04,820 | INFO     | Cached 200/2252 samples
+2026-04-20 16:36:05,628 | INFO     | Cached 300/2252 samples
+2026-04-20 16:36:06,390 | INFO     | Cached 400/2252 samples
+2026-04-20 16:36:07,159 | INFO     | Cached 500/2252 samples
+2026-04-20 16:36:07,967 | INFO     | Cached 600/2252 samples
+2026-04-20 16:36:08,725 | INFO     | Cached 700/2252 samples
+2026-04-20 16:36:09,498 | INFO     | Cached 800/2252 samples
+2026-04-20 16:36:10,270 | INFO     | Cached 900/2252 samples
+2026-04-20 16:36:11,054 | INFO     | Cached 1000/2252 samples
+2026-04-20 16:36:11,846 | INFO     | Cached 1100/2252 samples
+2026-04-20 16:36:12,622 | INFO     | Cached 1200/2252 samples
+2026-04-20 16:36:13,416 | INFO     | Cached 1300/2252 samples
+2026-04-20 16:36:14,261 | INFO     | Cached 1400/2252 samples
+2026-04-20 16:36:15,040 | INFO     | Cached 1500/2252 samples
+2026-04-20 16:36:15,825 | INFO     | Cached 1600/2252 samples
+2026-04-20 16:36:16,601 | INFO     | Cached 1700/2252 samples
+2026-04-20 16:36:17,379 | INFO     | Cached 1800/2252 samples
+2026-04-20 16:36:18,193 | INFO     | Cached 1900/2252 samples
+2026-04-20 16:36:18,972 | INFO     | Cached 2000/2252 samples
+2026-04-20 16:36:19,733 | INFO     | Cached 2100/2252 samples
+2026-04-20 16:36:20,510 | INFO     | Cached 2200/2252 samples
+2026-04-20 16:36:20,903 | INFO     | Cache finalized: 46 files written to data/cache
+2026-04-20 16:36:20,903 | INFO     | Arrow cache built: 2252 samples in 18.03s at data/cache
