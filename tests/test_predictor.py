@@ -91,7 +91,7 @@ class TestPredictorValidation:
     def test_num_classes_mismatch_raises(self, saved_checkpoint: Path) -> None:
         """Test that loading a checkpoint with mismatched num_classes raises error."""
         with pytest.raises(
-            (ValueError, RuntimeError), match="(num_classes mismatch|size mismatch)"
+            (ValueError, RuntimeError), match=r"(num_classes mismatch|size mismatch)"
         ):
             Predictor(
                 checkpoint_path=saved_checkpoint,
