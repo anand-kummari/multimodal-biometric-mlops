@@ -168,7 +168,7 @@ class RunTracker:
             The best run as a dict, or None if no completed runs exist.
         """
         rows = self.query_runs(
-            "SELECT * FROM runs" f" WHERE experiment = '{experiment}'" " AND status = 'completed'"
+            f"SELECT * FROM runs WHERE experiment = '{experiment}' AND status = 'completed'"
         )
         if not rows:
             return None
