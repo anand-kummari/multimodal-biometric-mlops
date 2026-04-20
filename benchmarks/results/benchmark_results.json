@@ -1,0 +1,137 @@
+{
+  "dataloader": [
+    {
+      "config": {
+        "num_workers": 0,
+        "pin_memory": false,
+        "persistent_workers": false
+      },
+      "name": "workers=0_pin=False",
+      "avg_throughput_sps": 200.93381497370774,
+      "avg_batch_time_ms": 79.53832141370303,
+      "epoch_results": [
+        {
+          "epoch": 0,
+          "throughput": 194.0212778319719,
+          "batch_time_ms": 82.31896719856498,
+          "total_seconds": 11.606974374997662
+        },
+        {
+          "epoch": 1,
+          "throughput": 202.73707428781663,
+          "batch_time_ms": 78.78002216308774,
+          "total_seconds": 11.107983124995371
+        },
+        {
+          "epoch": 2,
+          "throughput": 206.0430928013347,
+          "batch_time_ms": 77.51597487945638,
+          "total_seconds": 10.92975245800335
+        }
+      ]
+    },
+    {
+      "config": {
+        "num_workers": 2,
+        "pin_memory": true,
+        "persistent_workers": true
+      },
+      "name": "workers=2_pin=True",
+      "avg_throughput_sps": 383.4151349562321,
+      "avg_batch_time_ms": 42.08809505435572,
+      "epoch_results": [
+        {
+          "epoch": 0,
+          "throughput": 331.54193667514534,
+          "batch_time_ms": 48.17378870933977,
+          "total_seconds": 6.792504208016908
+        },
+        {
+          "epoch": 1,
+          "throughput": 398.31961125080073,
+          "batch_time_ms": 40.09752659558926,
+          "total_seconds": 5.653751249978086
+        },
+        {
+          "epoch": 2,
+          "throughput": 420.3838569427502,
+          "batch_time_ms": 37.99296985813813,
+          "total_seconds": 5.357008749997476
+        }
+      ]
+    },
+    {
+      "config": {
+        "num_workers": 4,
+        "pin_memory": true,
+        "persistent_workers": true
+      },
+      "name": "workers=4_pin=True",
+      "avg_throughput_sps": 669.7783990747043,
+      "avg_batch_time_ms": 26.84217572811359,
+      "epoch_results": [
+        {
+          "epoch": 0,
+          "throughput": 388.5070153706206,
+          "batch_time_ms": 41.11027748221598,
+          "total_seconds": 5.796549124992453
+        },
+        {
+          "epoch": 1,
+          "throughput": 812.5493777289183,
+          "batch_time_ms": 19.6561976951045,
+          "total_seconds": 2.771523875009734
+        },
+        {
+          "epoch": 2,
+          "throughput": 808.2788041245742,
+          "batch_time_ms": 19.7600520070203,
+          "total_seconds": 2.786167332989862
+        }
+      ]
+    },
+    {
+      "config": {
+        "num_workers": 8,
+        "pin_memory": true,
+        "persistent_workers": true
+      },
+      "name": "workers=8_pin=True",
+      "avg_throughput_sps": 1136.5225385758526,
+      "avg_batch_time_ms": 22.88231757209674,
+      "epoch_results": [
+        {
+          "epoch": 0,
+          "throughput": 334.2303715861613,
+          "batch_time_ms": 47.78629521272106,
+          "total_seconds": 6.737867624993669
+        },
+        {
+          "epoch": 1,
+          "throughput": 1438.4634885047692,
+          "batch_time_ms": 11.103257978605834,
+          "total_seconds": 1.5655593749834225
+        },
+        {
+          "epoch": 2,
+          "throughput": 1636.8737556366275,
+          "batch_time_ms": 9.757399524963322,
+          "total_seconds": 1.3757933330198284
+        }
+      ]
+    }
+  ],
+  "preprocessing": {
+    "sequential": {
+      "elapsed_seconds": 3.0374617080087774,
+      "images_processed": 900,
+      "images_per_second": 296.300031578011
+    },
+    "ray_parallel": {
+      "elapsed_seconds": 4.394308791990625,
+      "images_processed": 900,
+      "images_per_second": 204.81036781948575
+    },
+    "speedup": 0.6912262773943124
+  }
+}

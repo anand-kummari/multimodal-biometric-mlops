@@ -194,16 +194,26 @@ The image uses a multi-stage build (builder + slim runtime), runs as a non-root 
 | [`docs/decisions.md`](docs/decisions.md) | Architecture Decision Records — *why* each technology was chosen |
 | [`docs/deployment.md`](docs/deployment.md) | ONNX serving via Triton, Kubernetes manifests, monitoring |
 
+## Training Results
+
+Trained on the full Kaggle dataset (45 subjects, 900 images, 3 modalities) for 15 epochs with early stopping:
+
+![Training Curves](docs/img/training_curves.png)
+
+- **Best val_loss**: 3.807 at epoch 2 (early stopping triggered at epoch 12)
+- Train accuracy reaches ~87% — the model overfits due to the small dataset size, which is expected
+- The focus of this project is **infrastructure quality**, not model accuracy
+
 ## Benchmark Results
 
 DataLoader throughput measured with `benchmarks/benchmark_dataloader.py`:
 
 | Configuration | Throughput (samples/s) | Avg batch time |
 |---|---|---|
-| `num_workers=0`, no pin | 211 | 75.5 ms |
-| `num_workers=2`, pin + persistent | 425 | 38.1 ms |
-| `num_workers=4`, pin + persistent | 756 | 21.8 ms |
-| `num_workers=8`, pin + persistent | 1 328 | 13.8 ms |
+| `num_workers=0`, no pin | 201 | 79.5 ms |
+| `num_workers=2`, pin + persistent | 383 | 42.1 ms |
+| `num_workers=4`, pin + persistent | 670 | 26.8 ms |
+| `num_workers=8`, pin + persistent | 1 137 | 22.9 ms |
 
 See [`docs/scalability_analysis.md`](docs/scalability_analysis.md) for full analysis.
 

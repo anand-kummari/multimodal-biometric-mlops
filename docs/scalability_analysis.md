@@ -13,13 +13,23 @@ It's pretty small right now:
 | Subjects | 45 |
 | Modalities per subject | 3 (iris_left, iris_right, fingerprint) |
 | Images per modality | ~20 |
-| Total images | ~2 700 |
+| Total images | ~900 (450 images across 45 subjects × 3 modalities) |
+| Training samples (after pairing) | 2 252 |
 | Size on disk | ~120 MB |
 | Preprocessed dims | 224 × 224 |
 
 ### Where does time go?
 
-At this scale, it's **I/O-bound on the first epoch** — each `__getitem__` reads three image files. On an SSD that's 1–3 ms per sample. After the first pass, the OS page cache kicks in and disk I/O drops to basically zero.
+Measured on an M-series Mac with the real dataset:
+
+| Metric | Value |
+|---|---|
+| Per-sample `__getitem__` | ~4.9 ms |
+| Single-process throughput | ~204 samples/s |
+| 4-worker DataLoader throughput | ~670 samples/s |
+| 8-worker DataLoader throughput | ~1 137 samples/s |
+
+At this scale, it's **I/O-bound on the first epoch** — each `__getitem__` reads three image files. On an SSD that's ~5 ms per sample. After the first pass, the OS page cache kicks in and disk I/O drops to basically zero.
 
 At **larger scale, CPU becomes the bottleneck**. Transform pipelines (resize, colour jitter, normalise, to-tensor) eat ~70% of per-sample time when the images are already in memory.
 
@@ -56,15 +66,18 @@ The trade-off is disk space — Snappy-compressed cache is about 1.5× the raw i
 
 ### Measured throughput
 
-| Mode | Time (~2 700 imgs) | Throughput |
+Numbers from running on the Kaggle dataset (900 images, M-series Mac, 14 CPUs):
+
+| Mode | Time (900 imgs) | Throughput |
 |---|---|---|
-| Sequential | ~8 s | ~340 img/s |
-| Ray, 4 CPUs | ~3 s | ~900 img/s |
-| Ray, 8 CPUs | ~2 s | ~1 350 img/s |
+| Sequential | 3.04 s | 296 img/s |
+| Ray, 14 CPUs | 4.39 s | 205 img/s |
+
+**Why is Ray slower here?** At 900 images with ~3 ms of work per image, the total compute is about 2.7 s. Ray's per-task scheduling overhead (~0.5 ms × 900 = 0.45 s) plus startup time (~2 s for the local Ray instance) wipes out the parallelism gains. This is expected — Ray's advantage kicks in at larger scale (10k+ images) where task compute dominates scheduling overhead.
 
 ### Known issue: task granularity
 
-Right now each Ray task processes one image (~3 ms of actual work). Ray's scheduling overhead is about 0.5 ms per task, so for 2 700 tasks that's ~1.35 s just in scheduling. At this scale it's fine, but at 100k+ images I'd batch them — say 50 images per Ray task — to amortise the overhead.
+Right now each Ray task processes one image (~3 ms of actual work). Ray's scheduling overhead is about 0.5 ms per task, so for 900 tasks that's ~0.45 s in scheduling alone, plus ~2 s for Ray startup. At this scale sequential wins. At 100k+ images I'd batch them — say 50 images per Ray task — to amortise the overhead and the startup cost becomes negligible.
 
 ### Why Ray instead of plain multiprocessing?
 
