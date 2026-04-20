@@ -68,3 +68,41 @@ class TestPredictBatch:
         result = predictor.predict_batch(batch)
         assert len(result["predictions"]) == 4
         assert len(result["confidences"]) == 4
+
+    def test_batch_with_partial_modalities(self, saved_checkpoint: Path) -> None:
+        """Test batch prediction with missing modalities."""
+        predictor = Predictor(checkpoint_path=saved_checkpoint, device=torch.device("cpu"))
+        batch = {
+            "iris_left": torch.randn(4, 3, 224, 224),
+            "iris_right": torch.zeros(4, 3, 224, 224),
+            "fingerprint": torch.zeros(4, 1, 224, 224),
+            "has_iris_left": torch.tensor([True, True, True, True]),
+            "has_iris_right": torch.tensor([False, False, False, False]),
+            "has_fingerprint": torch.tensor([False, False, False, False]),
+        }
+        result = predictor.predict_batch(batch)
+        assert len(result["predictions"]) == 4
+        assert len(result["confidences"]) == 4
+
+
+class TestPredictorValidation:
+    """Test predictor validation and error handling."""
+
+    def test_num_classes_mismatch_raises(self, saved_checkpoint: Path) -> None:
+        """Test that loading a checkpoint with mismatched num_classes raises error."""
+        with pytest.raises(
+            (ValueError, RuntimeError), match="(num_classes mismatch|size mismatch)"
+        ):
+            Predictor(
+                checkpoint_path=saved_checkpoint,
+                model_config={"num_classes": 10},
+                device=torch.device("cpu"),
+            )
+
+    def test_missing_checkpoint_file_raises(self, tmp_path: Path) -> None:
+        """Test that missing checkpoint file raises FileNotFoundError."""
+        with pytest.raises(FileNotFoundError):
+            Predictor(
+                checkpoint_path=tmp_path / "missing.pt",
+                device=torch.device("cpu"),
+            )

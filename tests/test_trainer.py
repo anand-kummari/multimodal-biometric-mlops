@@ -80,6 +80,77 @@ class TestTrainer:
         with pytest.raises(ValueError, match="Unknown optimizer"):
             Trainer(model=model, device=device, optimizer_name="invalid")
 
+    def test_resume_from_checkpoint(self, device: torch.device, tmp_path: Path) -> None:
+        """Test resuming training from a checkpoint."""
+        model = MultimodalFusionNet(num_classes=45)
+        trainer = Trainer(
+            model=model,
+            device=device,
+            callbacks=[
+                ModelCheckpoint(
+                    checkpoint_dir=str(tmp_path),
+                    save_last=True,
+                )
+            ],
+        )
+
+        train_loader = _create_dummy_loader(num_samples=8)
+        val_loader = _create_dummy_loader(num_samples=4)
+
+        trainer.fit(train_loader, val_loader, epochs=2)
+
+        checkpoint_path = tmp_path / "checkpoint_last.pt"
+        assert checkpoint_path.exists()
+
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+        assert "epoch" in checkpoint
+        assert checkpoint["epoch"] == 1
+
+        new_model = MultimodalFusionNet(num_classes=45)
+        new_trainer = Trainer(model=new_model, device=device)
+        new_trainer.resume_from_checkpoint(str(checkpoint_path))
+
+        assert new_trainer._start_epoch == 2
+
+    def test_mixed_precision_training(self, device: torch.device) -> None:
+        """Test that mixed precision training runs without errors."""
+        model = MultimodalFusionNet(num_classes=45)
+        trainer = Trainer(model=model, device=device, mixed_precision=True)
+
+        train_loader = _create_dummy_loader(num_samples=8)
+        val_loader = _create_dummy_loader(num_samples=4)
+
+        metrics = trainer.fit(train_loader, val_loader, epochs=1)
+
+        assert metrics is not None
+
+    def test_modality_masking_in_training(self, device: torch.device) -> None:
+        """Test that modality masks are correctly passed during training."""
+        model = MultimodalFusionNet(num_classes=2)
+
+        class ModalityDataset(Dataset[dict[str, torch.Tensor]]):
+            def __len__(self) -> int:
+                return 16
+
+            def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+                return {
+                    "iris_left": torch.randn(3, 224, 224),
+                    "iris_right": torch.randn(3, 224, 224),
+                    "fingerprint": torch.randn(1, 224, 224),
+                    "has_iris_left": torch.tensor(True),
+                    "has_iris_right": torch.tensor(True),
+                    "has_fingerprint": torch.tensor(idx % 2 == 0),
+                    "label": torch.tensor(idx % 2),
+                }
+
+        dataloader = DataLoader(ModalityDataset(), batch_size=4)
+        trainer = Trainer(model=model, device=device)
+
+        metrics = trainer.fit(dataloader, dataloader, epochs=1)
+
+        assert metrics is not None
+        assert "train_loss" in metrics.to_dict()[0]
+
 
 class TestEarlyStopping:
     """Tests for the EarlyStopping callback."""

@@ -36,6 +36,11 @@ coverage.xml
 outputs/
 multirun/
 
+# MLflow
+mlflow.db
+mlruns/
+*.json
+
 # Data (do not commit raw data)
 data/raw/
 data/processed/

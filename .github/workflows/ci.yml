@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.12"
@@ -70,15 +71,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,export,tracking]"
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (excluding slow integration tests)
         run: |
-          pytest tests/ -v --tb=short --cov=src/biometric --cov-report=term-missing --cov-report=xml
+          pytest tests/ -v --tb=short -m "not slow" --cov=src/biometric --cov-report=term-missing --cov-report=xml
 
-      - name: Enforce minimum coverage (70%)
+      - name: Enforce minimum coverage (85%)
         run: |
-          coverage report --fail-under=70
+          coverage report --fail-under=85
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -149,3 +150,24 @@ jobs:
           assert out.shape == (2, 45), f'Expected (2, 45), got {out.shape}'
           print('Smoke test passed: model forward pass OK')
           "
+
+  integration-tests:
+    name: Integration Tests (Optional)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev,export,tracking]"
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v --tb=short -m "slow or integration"
