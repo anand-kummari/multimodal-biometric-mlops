@@ -104,7 +104,7 @@ jobs:
       - name: Run pip-audit
         run: |
           pip install pip-audit
-          pip-audit --strict --desc || true
+          pip-audit --desc
 
   docker:
     name: Docker Build Check
